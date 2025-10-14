@@ -61,7 +61,7 @@ function getFeedbackQueue($conn)
     $query .= " AND i.Assembly LIKE '%$searchInput%'";
   }
 
-  $query .= " ORDER BY i.EndTime DESC, d.DefectID ASC LIMIT 300;";
+  $query .= " ORDER BY i.EndTime DESC, d.DefectID DESC;";
 
   $result = $conn->query($query);
   if (!$result) throw new Exception("Query failed: " . $conn->error);
