@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/feedback.css">
     <link rel="stylesheet" href="css/notiflix.css">
+    <link rel="stylesheet" href="css/flatpickr.min.css">
 </head>
 
 <body>
@@ -44,7 +45,11 @@
                 <form action="#" method="get" id="search-form">
                     <div class="filter-control">
                         <label for="search-input">Cari Assembly</label>
-                        <input type="text" id="search-input" name="search-input" placeholder="Cari Assembly..." title="Cari Assembly">
+                        <input type="text" id="search-input" name="search-input" placeholder="Cari Assembly..." title="Cari Assembly" required>
+                    </div>
+                    <div class="filter-control">
+                        <label for="date_range">Date Range</label>
+                        <input type="text" id="date_range" placeholder="Select date range..">
                     </div>
                     <div style="align-self: flex-end;">
                         <button id="filter-btn" class="btn-filter">Cari</button>
@@ -104,6 +109,7 @@
         </div>
     </main>
 
+    <script src="js/flatpickr.min.js"></script>
     <script src="js/feedback.js"></script>
     <script src="js/notiflix.js"></script>
 

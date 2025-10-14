@@ -15,32 +15,41 @@ document.addEventListener("DOMContentLoaded", () => {
   const lineFilter = document.getElementById("line-filter");
   const defectFilter = document.getElementById("defect-filter");
 
+  const dateRangePicker = flatpickr("#date_range", {
+    mode: "range",
+    dateFormat: "Y-m-d",
+  });
+
   // // === Fungsi Utama ===
   async function fetchFeedbackData() {
     showLoading(true);
-      try {
-        const searchQuery = document.getElementById("search-input").value.trim();
-        const url = new URL(API_URL, window.location.origin);
-        if (searchQuery !== "") {
-          url.searchParams.append("search-input", searchQuery);
-        }
-
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-        const data = await response.json();
-        if (data.error) throw new Error(data.error);
-
-        verificationData = data;
-        populateFilters();
-        applyFilters();
-      } catch (error) {
-        console.error("Gagal mengambil data feedback:", error);
-        showErrorState("Failed to load data. Please try again later.");
-      } finally {
-        showLoading(false);
+    try {
+      const searchQuery = document.getElementById("search-input").value.trim();
+      var dateQuery = dateRangePicker.selectedDates.map(date => date.toISOString().slice(0, 10));
+      const url = new URL(API_URL, window.location.origin);
+      if (searchQuery !== "") {
+        url.searchParams.append("search-input", searchQuery);
       }
-  }
+      if(dateQuery !== "")
+      {
+        url.searchParams.append("date-range", dateQuery);
+      }
 
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      verificationData = data;
+      populateFilters();
+      applyFilters();
+    } catch (error) {
+      console.error("Gagal mengambil data feedback:", error);
+      showErrorState("Failed to load data. Please try again later.");
+    } finally {
+      showLoading(false);
+    }
+  }
 
   function renderTable(dataToRender) {
     if (dataToRender.length === 0) {
@@ -58,13 +67,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 <tr data-id="${item.DefectID}">
                     <td>${index + 1}</td>
                     <td>${new Date(item.EndTime).toLocaleTimeString("id-ID", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}</td>
+        hour: "2-digit",
+        minute: "2-digit",
+      })}</td>
                     <td>${item.LineName || "N/A"}</td>
-                    <td class="${defectCellClass}">${
-        item.MachineDefectCode || "N/A"
-      }</td>
+                    <td class="${defectCellClass}">${item.MachineDefectCode || "N/A"
+        }</td>
                     <td>${resultBadge}</td>
                 </tr>
             `;
@@ -94,40 +102,32 @@ document.addEventListener("DOMContentLoaded", () => {
     detailContent.innerHTML = `
             <div class="detail-content-wrapper">
                 <div class="detail-image-container">
-                    <img src="${
-                      item.image_url || "assets/images/placeholder.png"
-                    }" alt="Defect Image">
+                    <img src="${item.image_url || "assets/images/placeholder.png"
+      }" alt="Defect Image">
                     ${criticalBanner}
                 </div>
                 <div class="detail-grid">
                     <div class="detail-info-column">
                         <div class="info-row"><span class="info-label">Timestamp</span><span class="info-value">${new Date(
-                          item.EndTime
-                        ).toLocaleString("id-ID")}</span></div>
-                        <div class="info-row"><span class="info-label">Line</span><span class="info-value">${
-                          item.LineName || "N/A"
-                        }</span></div>
-                        <div class="info-row"><span class="info-label">Operator</span><span class="info-value">${
-                          item.OperatorName || "N/A"
-                        }</span></div>
-                        <div class="info-row"><span class="info-label">Assembly</span><span class="info-value">${
-                          item.Assembly || "N/A"
-                        }</span></div>
-                        <div class="info-row"><span class="info-label">Lot Code</span><span class="info-value">${
-                          item.LotCode || "N/A"
-                        }</span></div>
+        item.EndTime
+      ).toLocaleString("id-ID")}</span></div>
+                        <div class="info-row"><span class="info-label">Line</span><span class="info-value">${item.LineName || "N/A"
+      }</span></div>
+                        <div class="info-row"><span class="info-label">Operator</span><span class="info-value">${item.OperatorName || "N/A"
+      }</span></div>
+                        <div class="info-row"><span class="info-label">Assembly</span><span class="info-value">${item.Assembly || "N/A"
+      }</span></div>
+                        <div class="info-row"><span class="info-label">Lot Code</span><span class="info-value">${item.LotCode || "N/A"
+      }</span></div>
                     </div>
                     <div class="separator"></div>
                     <div class="detail-info-column">
-                        <div class="info-row"><span class="info-label">Component Ref</span><span class="info-value">${
-                          item.ComponentRef || "N/A"
-                        }</span></div>
-                        <div class="info-row"><span class="info-label">Part Number</span><span class="info-value">${
-                          item.PartNumber || "N/A"
-                        }</span></div>
-                        <div class="info-row"><span class="info-label">Machine Defect</span><span class="info-value">${
-                          item.MachineDefectCode || "N/A"
-                        }</span></div>
+                        <div class="info-row"><span class="info-label">Component Ref</span><span class="info-value">${item.ComponentRef || "N/A"
+      }</span></div>
+                        <div class="info-row"><span class="info-label">Part Number</span><span class="info-value">${item.PartNumber || "N/A"
+      }</span></div>
+                        <div class="info-row"><span class="info-label">Machine Defect</span><span class="info-value">${item.MachineDefectCode || "N/A"
+      }</span></div>
                         <div class="info-row"><span class="info-label">Operator Result</span><span class="info-value">${resultBadge}</span></div>
                     </div>
                 </div>
@@ -184,8 +184,8 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
 
     if (!selectedDefectId) {
-        //alert("Error: No defect selected. Please select an item from the list.");
-        Notiflix.Notify.warning("Error: No defect selected. Please select an item from the list.");
+      //alert("Error: No defect selected. Please select an item from the list.");
+      Notiflix.Notify.warning("Error: No defect selected. Please select an item from the list.");
       return;
     }
 
@@ -361,8 +361,8 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchFeedbackData();
 
   document.getElementById("search-form").addEventListener("submit", function (e) {
-  e.preventDefault();
-  fetchFeedbackData(); // fetch ulang dengan query baru
-});
+    e.preventDefault();
+    fetchFeedbackData();
+  });
 
 });

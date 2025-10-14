@@ -32,6 +32,7 @@ try {
 function getFeedbackQueue($conn)
 {
   $searchInput = isset($_GET['search-input']) ? $conn->real_escape_string($_GET['search-input']) : '';
+  $dateInput = isset($_GET['date-range']) ? $_GET['date-range'] : '';
 
   $query = "
     SELECT
@@ -59,9 +60,15 @@ function getFeedbackQueue($conn)
 
   if (!empty($searchInput)) {
     $query .= " AND i.Assembly LIKE '%$searchInput%'";
+    $dates = explode(' - ', $dateInput);
+        if (count($dates) == 2) {
+            $startDate = $conn->real_escape_string(trim($dates[0]));
+            $endDate = $conn->real_escape_string(trim($dates[1]));
+            $query .= " AND DATE(i.EndTime) BETWEEN '$startDate' AND '$endDate'";
+        }
+  }else{
+    $query .= " ORDER BY i.EndTime DESC, d.DefectID ASC LIMIT 300;";
   }
-
-  $query .= " ORDER BY i.EndTime DESC, d.DefectID DESC;";
 
   $result = $conn->query($query);
   if (!$result) throw new Exception("Query failed: " . $conn->error);
