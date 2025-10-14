@@ -32,13 +32,19 @@ $(document).ready(function() {
             { "data": "LineName", "title": "Line" },
             { "data": "Assembly", "title": "Assembly" },
             { "data": "LotCode", "title": "Lot Code" },
+            { "data": "TuningCycleID", "title": "Cycle" },
             { "data": "Inspected", "title": "Inspected" },
             { "data": "Pass", "title": "Pass" },
             { "data": "Defect", "title": "Defect" },
             { "data": "FalseCall", "title": "False Call" },
-            // { "data": "Unreviewed", "title": "Unreviewed" },
             { "data": "PassRate", "title": "Pass Rate (%)" },
-            { "data": "PPM", "title": "PPM" }
+            { "data": "PPM", "title": "PPM" },
+            { "data": "Notes", "title": "Notes / Change Log" }
+        ],
+        // *** PERUBAHAN: Menyesuaikan lebar kolom Notes ***
+        "columnDefs": [
+            { "width": "140px", "targets": 0 }, // Timestamp
+            { "width": "250px", "targets": 11 } // Notes column
         ],
         "responsive": true,
         "pageLength": 10,
@@ -107,7 +113,6 @@ $(document).ready(function() {
                 ("0" + now.getSeconds()).slice(-2);
             const filename = `AOI_KPI_Report_${timestamp}.xlsx`;
             XLSX.utils.book_append_sheet(workbook, worksheet, "KPI Report");
-            //XLSX.writeFile(workbook, "AOI_KPI_Report.xlsx");
             XLSX.writeFile(workbook, filename);
         })
         .catch(error => {

@@ -4,7 +4,6 @@ require_once 'db_config.php';
 
 header('Content-Type: application/json');
 
-// Menggunakan 'Throwable' untuk menangkap semua jenis error
 try {
     if (isset($_POST['export']) && $_POST['export'] === 'true') {
         handleExport($conn);
@@ -12,11 +11,8 @@ try {
         handleDataTable($conn);
     }
 } catch (Throwable $t) {
-    // Mencatat error ke log server untuk debugging yang pasti
     error_log('API Error: ' . $t->getMessage() . ' in ' . $t->getFile() . ' on line ' . $t->getLine());
-
     http_response_code(500);
-    // Mengirim pesan error yang lebih informatif ke browser
     echo json_encode([
         'error' => 'A server error occurred. Please check the server logs for more details.',
         'debug_message' => $t->getMessage()
@@ -27,18 +23,12 @@ try {
     }
 }
 
-function buildWhereClause($conn, $isExport = false)
+function buildWhereClause($conn)
 {
-    // Logika ini tetap sama, sudah solid
-    if ($isExport) {
-        $dateFilter = isset($_POST['date_filter']) ? json_decode($_POST['date_filter'], true) : [];
-        $lineFilter = isset($_POST['line_filter']) ? $_POST['line_filter'] : '';
-        $searchValue = '';
-    } else {
-        $dateFilter = isset($_POST['date_filter']) ? $_POST['date_filter'] : [];
-        $lineFilter = isset($_POST['line_filter']) ? $_POST['line_filter'] : '';
-        $searchValue = isset($_POST['search']['value']) ? $_POST['search']['value'] : '';
-    }
+    // Logika ini tetap sama, hanya sumber datanya yang berbeda tergantung POST atau GET
+    $dateFilter = isset($_POST['date_filter']) ? $_POST['date_filter'] : [];
+    $lineFilter = isset($_POST['line_filter']) ? $_POST['line_filter'] : '';
+    $searchValue = isset($_POST['search']['value']) ? $_POST['search']['value'] : '';
 
     $whereClauses = [];
     $params = [];
@@ -71,7 +61,36 @@ function buildWhereClause($conn, $isExport = false)
     return ['sql' => $whereSql, 'params' => $params, 'types' => $paramTypes];
 }
 
-// Fungsi helper baru untuk binding parameter yang lebih aman
+function buildWhereClauseForExport($conn)
+{
+    $dateFilter = isset($_POST['date_filter']) ? json_decode($_POST['date_filter'], true) : [];
+    $lineFilter = isset($_POST['line_filter']) ? $_POST['line_filter'] : '';
+
+    $whereClauses = [];
+    $params = [];
+    $paramTypes = '';
+
+    if (is_array($dateFilter) && count($dateFilter) == 2) {
+        $whereClauses[] = "DATE(i.EndTime) BETWEEN ? AND ?";
+        $params[] = $dateFilter[0];
+        $params[] = $dateFilter[1];
+        $paramTypes .= 'ss';
+    }
+    if (!empty($lineFilter)) {
+        $whereClauses[] = "i.LineID = ?";
+        $params[] = $lineFilter;
+        $paramTypes .= 'i';
+    }
+
+    $whereSql = '';
+    if (count($whereClauses) > 0) {
+        $whereSql = ' WHERE ' . implode(' AND ', $whereClauses);
+    }
+
+    return ['sql' => $whereSql, 'params' => $params, 'types' => $paramTypes];
+}
+
+
 function bindParams($stmt, $types, $params)
 {
     if (empty($types) || empty($params)) {
@@ -95,66 +114,74 @@ function handleDataTable($conn)
     $params = $filter['params'];
     $paramTypes = $filter['types'];
 
-    // PERBAIKAN: Memisahkan bagian-bagian query untuk urutan sintaks yang benar
-    $fromClause = "FROM Inspections i JOIN ProductionLines pl ON i.LineID = pl.LineID";
-    $groupByClause = "GROUP BY i.LineID, i.Assembly, i.LotCode";
+    $fromClause = "
+        FROM Inspections i 
+        JOIN ProductionLines pl ON i.LineID = pl.LineID
+        LEFT JOIN TuningCycles tc ON i.LineID = tc.LineID AND i.Assembly = tc.Assembly AND i.TuningCycleID = tc.CycleVersion
+    ";
+    $groupByClause = "GROUP BY i.LineID, i.Assembly, i.LotCode, i.TuningCycleID";
 
     // Dapatkan total records (filtered)
     $countQuery = "SELECT COUNT(*) as total FROM (SELECT i.LineID " . $fromClause . " " . $whereSql . " " . $groupByClause . ") as subquery";
     $stmt = $conn->prepare($countQuery);
-    if (!$stmt) throw new Exception("Prepare failed for count query: " . $conn->error);
     bindParams($stmt, $paramTypes, $params);
-    if (!$stmt->execute()) throw new Exception("Count Query Failed: " . $stmt->error);
+    $stmt->execute();
     $recordsFiltered = $stmt->get_result()->fetch_assoc()['total'];
+    $stmt->close();
 
     // Dapatkan total semua records (tanpa filter)
-    $totalQuery = "SELECT COUNT(*) as total FROM (SELECT i.LineID " . $fromClause . " " . $groupByClause . ") as subquery";
+    $totalQuery = "SELECT COUNT(*) as total FROM (SELECT i.LineID FROM Inspections i " . $groupByClause . ") as subquery";
     $recordsTotal = $conn->query($totalQuery)->fetch_assoc()['total'];
 
     // Query utama untuk data
+    // *** PERUBAHAN: Menggabungkan Unreviewed ke FalseCall dan mengubah ORDER BY ***
     $dataQuery = "
         SELECT 
             MAX(i.EndTime) as EndTime,
             pl.LineName,
             i.Assembly,
             i.LotCode,
+            i.TuningCycleID,
+            MAX(tc.Notes) as Notes,
             COUNT(i.InspectionID) AS Inspected,
             SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) AS Pass,
             SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) AS Defect,
-            SUM(CASE WHEN i.FinalResult = 'False Fail' THEN 1 ELSE 0 END) + SUM(CASE WHEN i.FinalResult = 'Unreviewed' THEN 1 ELSE 0 END) AS FalseCall,
-            #SUM(CASE WHEN i.FinalResult = 'Unreviewed' THEN 1 ELSE 0 END) AS Unreviewed,
+            SUM(CASE WHEN i.FinalResult IN ('False Fail', 'Unreviewed') THEN 1 ELSE 0 END) AS FalseCall,
             (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS PassRate,
             (SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 1000000 AS PPM
-        " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY EndTime DESC LIMIT ?, ?";
+        " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY EndTime DESC, i.Assembly ASC, i.LotCode ASC, i.TuningCycleID ASC LIMIT ?, ?";
 
     $stmt = $conn->prepare($dataQuery);
-    if (!$stmt) throw new Exception("Prepare failed for data query: " . $conn->error);
-
     $limitParams = [$start, $length > 0 ? $length : 1000000];
     bindParams($stmt, $paramTypes . 'ii', array_merge($params, $limitParams));
-
-    if (!$stmt->execute()) throw new Exception("Data Query Failed: " . $stmt->error);
+    $stmt->execute();
     $result = $stmt->get_result();
     $data = [];
     while ($row = $result->fetch_assoc()) {
         $row['PassRate'] = number_format($row['PassRate'], 2);
         $row['PPM'] = (int)$row['PPM'];
+        $row['Notes'] = $row['Notes'] ?? 'Initial Program';
         $data[] = $row;
     }
+    $stmt->close();
 
     echo json_encode(["draw" => $draw, "recordsTotal" => $recordsTotal, "recordsFiltered" => $recordsFiltered, "data" => $data]);
 }
 
 function handleExport($conn)
 {
-    $filter = buildWhereClause($conn, true);
+    $filter = buildWhereClauseForExport($conn);
     $whereSql = $filter['sql'];
     $params = $filter['params'];
     $paramTypes = $filter['types'];
 
-    // PERBAIKAN: Memisahkan bagian query untuk urutan sintaks yang benar
-    $fromClause = "FROM Inspections i JOIN ProductionLines pl ON i.LineID = pl.LineID";
-    $groupByClause = "GROUP BY i.LineID, i.Assembly, i.LotCode";
+    // *** PERUBAHAN: Menggabungkan Unreviewed ke FalseCall dan mengubah ORDER BY ***
+    $fromClause = "
+        FROM Inspections i 
+        JOIN ProductionLines pl ON i.LineID = pl.LineID
+        LEFT JOIN TuningCycles tc ON i.LineID = tc.LineID AND i.Assembly = tc.Assembly AND i.TuningCycleID = tc.CycleVersion
+    ";
+    $groupByClause = "GROUP BY i.LineID, i.Assembly, i.LotCode, i.TuningCycleID";
 
     $dataQuery = "
         SELECT 
@@ -162,26 +189,27 @@ function handleExport($conn)
             pl.LineName,
             i.Assembly,
             i.LotCode,
+            i.TuningCycleID AS 'Tuning Cycle',
+            MAX(tc.Notes) AS 'Notes',
             COUNT(i.InspectionID) AS Inspected,
             SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) AS Pass,
             SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) AS Defect,
-            SUM(CASE WHEN i.FinalResult = 'False Fail' THEN 1 ELSE 0 END) AS 'False Call',
-            SUM(CASE WHEN i.FinalResult = 'Unreviewed' THEN 1 ELSE 0 END) AS 'Unreviewed',
+            SUM(CASE WHEN i.FinalResult IN ('False Fail', 'Unreviewed') THEN 1 ELSE 0 END) AS 'False Call',
             (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS 'Pass Rate (%)',
             (SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 1000000 AS PPM
-        " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY Timestamp DESC";
+        " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY i.Assembly ASC, i.LotCode ASC, i.TuningCycleID ASC";
 
     $stmt = $conn->prepare($dataQuery);
-    if (!$stmt) throw new Exception("Prepare failed for export query: " . $conn->error);
     bindParams($stmt, $paramTypes, $params);
-
-    if (!$stmt->execute()) throw new Exception("Export Query Failed: " . $stmt->error);
+    $stmt->execute();
     $result = $stmt->get_result();
     $data = [];
     while ($row = $result->fetch_assoc()) {
         $row['Pass Rate (%)'] = number_format($row['Pass Rate (%)'], 2);
         $row['PPM'] = (int)$row['PPM'];
+        $row['Notes'] = $row['Notes'] ?? 'Initial Program';
         $data[] = $row;
     }
+    $stmt->close();
     echo json_encode($data);
 }

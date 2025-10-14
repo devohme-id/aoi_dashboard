@@ -31,74 +31,51 @@ try {
 
 function getFeedbackQueue($conn)
 {
-  $searchInput = isset($_GET['search-input']) ? $conn->real_escape_string($_GET['search-input']) : '';
-  $dateInput = isset($_GET['date-range']) ? $_GET['date-range'] : '';
+    // PERUBAHAN TOTAL: Query sekarang mengambil setiap defect unik yang belum diverifikasi.
+    $query = "
+        SELECT 
+            d.DefectID,
+            d.MachineDefectCode,
+            d.ComponentRef,
+            d.PartNumber,
+            d.ImageFileName,
+            i.InspectionID,
+            i.EndTime,
+            i.FinalResult,
+            i.Assembly,
+            i.LotCode,
+            i.LineID,
+            pl.LineName,
+            op.FullName AS OperatorName
+        FROM Defects d
+        JOIN Inspections i ON d.InspectionID = i.InspectionID
+        LEFT JOIN Users op ON i.OperatorUserID = op.UserID
+        LEFT JOIN ProductionLines pl ON i.LineID = pl.LineID
+        WHERE d.DefectID NOT IN (SELECT DISTINCT DefectID FROM FeedbackLog)
+        ORDER BY i.EndTime DESC, d.DefectID ASC
+        LIMIT 300;
+    ";
 
-  $query = "
-    SELECT
-        d.DefectID,
-        d.MachineDefectCode,
-        d.ComponentRef,
-        d.PartNumber,
-        d.ImageFileName,
-        i.InspectionID,
-        i.EndTime,
-        i.FinalResult,
-        i.Assembly,
-        i.LotCode,
-        i.LineID,
-        pl.LineName,
-        op.FullName AS OperatorName
-    FROM Defects d
-    JOIN Inspections i ON d.InspectionID = i.InspectionID
-    LEFT JOIN Users op ON i.OperatorUserID = op.UserID
-    LEFT JOIN ProductionLines pl ON i.LineID = pl.LineID
-    WHERE d.DefectID NOT IN (
-        SELECT DISTINCT DefectID FROM FeedbackLog
-    )
-";
+    $result = $conn->query($query);
+    if (!$result) throw new Exception("Query failed: " . $conn->error);
 
-    if (!empty($searchInput)) {
-        $query .= " AND i.Assembly LIKE '%$searchInput%'";
-    }
-
-    if (!empty($dateInput)) {
-        $dates = explode(' - ', $dateInput);
-        if (count($dates) == 2) {
-            $startDate = $conn->real_escape_string(trim($dates[0]));
-            $endDate = $conn->real_escape_string(trim($dates[1]));
-            $query .= " AND DATE(i.EndTime) BETWEEN '$startDate' AND '$endDate'";
+    $data = [];
+    while ($row = $result->fetch_assoc()) {
+        $image_url = null;
+        if (!empty($row['ImageFileName'])) {
+            $path_parts = explode('\\', $row['ImageFileName']);
+            if (count($path_parts) >= 2) {
+                $date_folder = $path_parts[0];
+                $actual_filename = end($path_parts);
+                $image_url = "api/get_image.php?line=" . $row['LineID'] . "&date=" . urlencode($date_folder) . "&file=" . urlencode($actual_filename);
+            }
         }
+        $row['image_url'] = $image_url;
+        $row['is_critical'] = in_array(strtoupper($row['MachineDefectCode']), CRITICAL_DEFECTS);
+        $data[] = $row;
     }
-
-    if (empty($searchInput) || empty($dateInput)) {
-        $query .= " ORDER BY i.EndTime DESC, d.DefectID DESC LIMIT 300;";
-    } else {
-        $query .= " ORDER BY i.EndTime DESC, d.DefectID DESC;";
-    }
-
-  $result = $conn->query($query);
-  if (!$result) throw new Exception("Query failed: " . $conn->error);
-
-  $data = [];
-  while ($row = $result->fetch_assoc()) {
-    $image_url = null;
-    if (!empty($row['ImageFileName'])) {
-      $path_parts = explode('\\', $row['ImageFileName']);
-      if (count($path_parts) >= 2) {
-        $date_folder = $path_parts[0];
-        $actual_filename = end($path_parts);
-        $image_url = "api/get_image.php?line=" . $row['LineID'] . "&date=" . urlencode($date_folder) . "&file=" . urlencode($actual_filename);
-      }
-    }
-    $row['image_url'] = $image_url;
-    $row['is_critical'] = in_array(strtoupper($row['MachineDefectCode']), CRITICAL_DEFECTS);
-    $data[] = $row;
-  }
-
-  echo json_encode($data);
+    echo json_encode($data);
 }
-
 
 function handleFeedbackSubmission($conn)
 {
