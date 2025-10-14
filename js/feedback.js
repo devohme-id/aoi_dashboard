@@ -25,15 +25,22 @@ document.addEventListener("DOMContentLoaded", () => {
     showLoading(true);
     try {
       const searchQuery = document.getElementById("search-input").value.trim();
-      var dateQuery = dateRangePicker.selectedDates.map(date => date.toISOString().slice(0, 10));
+      // var dateQuery = dateRangePicker.selectedDates.map(date => date.toISOString().slice(0, 10));
+      const selectedDates = dateRangePicker.selectedDates;
       const url = new URL(API_URL, window.location.origin);
       if (searchQuery !== "") {
         url.searchParams.append("search-input", searchQuery);
       }
-      if(dateQuery !== "")
-      {
-        url.searchParams.append("date-range", dateQuery);
+
+      if (selectedDates.length === 2) {
+        const sortedDates = [...selectedDates].sort((a, b) => a - b);
+        const startDate = sortedDates[0].toLocaleDateString('sv-SE');
+        const endDate = sortedDates[1].toLocaleDateString('sv-SE');
+        const formattedDateRange = `${startDate} - ${endDate}`;
+        url.searchParams.append("date-range", formattedDateRange);
       }
+
+      console.log(url.toString());
 
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);

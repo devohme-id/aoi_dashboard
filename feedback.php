@@ -49,7 +49,7 @@
                     </div>
                     <div class="filter-control">
                         <label for="date_range">Date Range</label>
-                        <input type="text" id="date_range" placeholder="Select date range..">
+                        <input type="text" id="date_range" name="date-range" placeholder="Select date range..">
                     </div>
                     <div style="align-self: flex-end;">
                         <button id="filter-btn" class="btn-filter">Cari</button>

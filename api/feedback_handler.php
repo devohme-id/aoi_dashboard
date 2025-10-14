@@ -58,17 +58,24 @@ function getFeedbackQueue($conn)
     )
 ";
 
-  if (!empty($searchInput)) {
-    $query .= " AND i.Assembly LIKE '%$searchInput%'";
-    $dates = explode(' - ', $dateInput);
+    if (!empty($searchInput)) {
+        $query .= " AND i.Assembly LIKE '%$searchInput%'";
+    }
+
+    if (!empty($dateInput)) {
+        $dates = explode(' - ', $dateInput);
         if (count($dates) == 2) {
             $startDate = $conn->real_escape_string(trim($dates[0]));
             $endDate = $conn->real_escape_string(trim($dates[1]));
             $query .= " AND DATE(i.EndTime) BETWEEN '$startDate' AND '$endDate'";
         }
-  }else{
-    $query .= " ORDER BY i.EndTime DESC, d.DefectID ASC LIMIT 300;";
-  }
+    }
+
+    if (empty($searchInput) || empty($dateInput)) {
+        $query .= " ORDER BY i.EndTime DESC, d.DefectID DESC LIMIT 300;";
+    } else {
+        $query .= " ORDER BY i.EndTime DESC, d.DefectID DESC;";
+    }
 
   $result = $conn->query($query);
   if (!$result) throw new Exception("Query failed: " . $conn->error);
