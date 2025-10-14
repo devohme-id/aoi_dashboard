@@ -1,0 +1,236 @@
+/* ==========================================================================
+   Layout Halaman Report
+   ========================================================================== */
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: var(--bg-color);
+    /* Pastikan background konsisten */
+    color: var(--text-color);
+    font-family: 'MyFontText', sans-serif;
+}
+
+.report-container {
+    flex-grow: 1;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    overflow-y: auto;
+}
+
+.card-ui {
+    /* Menggunakan style card dari dashboard utama */
+    background-color: var(--card-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+}
+
+.filter-panel {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1.5rem;
+    padding: 1.5rem;
+}
+
+.table-panel {
+    flex-grow: 1;
+    padding: 1.5rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   Styling Form & Kontrol
+   ========================================================================== */
+.filter-group {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-end;
+}
+
+.form-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-control label {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+.form-control input,
+.form-control select {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    color: var(--text-color);
+    padding: 0.6rem 1rem;
+    font-family: 'MyFontText', sans-serif;
+    font-size: 1rem;
+    min-width: 250px;
+}
+
+/* Styling Flatpickr (Date Picker) */
+.flatpickr-calendar {
+    background-color: var(--card-color);
+    border-color: var(--border-color);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.flatpickr-day.selected {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--text-dark);
+}
+
+.flatpickr-day:hover {
+    background-color: var(--border-color);
+}
+
+span.flatpickr-weekday,
+.flatpickr-day {
+    color: var(--text-color);
+}
+
+.numInput,
+.cur-month,
+.flatpickr-weekday,
+.flatpickr-monthDropdown-months,
+.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
+    color: var(--text-color) !important;
+}
+
+.flatpickr-day.today {
+    border-color: var(--accent-color);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Menggunakan style button dari dashboard utama */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-family: 'MyFontHeadline', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    /* Untuk tag <a> */
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    color: var(--text-dark);
+}
+
+.btn-primary:hover {
+    background-color: #67e8f9;
+    /* cyan-300 */
+}
+
+.btn-secondary {
+    background-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.btn-secondary:hover {
+    background-color: #475569;
+    /* slate-600 */
+}
+
+/* ==========================================================================
+   Styling DataTable
+   ========================================================================== */
+#report_table_wrapper {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#report_table {
+    color: var(--text-color);
+    width: 100% !important;
+}
+
+#report_table thead th {
+    background-color: var(--border-color);
+    color: var(--text-color);
+    border-bottom: 2px solid var(--accent-color);
+    font-family: 'MyFontHeadline', sans-serif;
+}
+
+#report_table tbody tr:nth-child(even) {
+    background-color: rgba(15, 23, 42, 0.5);
+}
+
+#report_table tbody tr:hover {
+    background-color: var(--border-color);
+}
+
+#report_table tbody td {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+    color: var(--text-light) !important;
+    padding: 0.5rem 0;
+}
+
+.dataTables_wrapper .dataTables_length select,
+.dataTables_wrapper .dataTables_filter input {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    color: var(--text-color);
+    padding: 0.25rem 0.5rem;
+    margin: 0 0.5rem;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    color: var(--text-light) !important;
+    border: 1px solid var(--border-color);
+    margin: 0 2px;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--border-color) !important;
+    border-color: var(--accent-color);
+    color: var(--text-color) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--accent-color) !important;
+    color: var(--text-dark) !important;
+    border-color: var(--accent-color);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dataTables_scrollBody {
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}

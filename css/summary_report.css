@@ -1,0 +1,24 @@
+/* File: css/summary_report.css */
+
+/* Menyesuaikan filter panel agar bisa menampung lebih banyak item */
+.filter-panel {
+    align-items: flex-end;
+}
+
+.filter-group {
+    flex-wrap: wrap;
+    /* Izinkan filter turun ke baris baru jika tidak cukup tempat */
+}
+
+.form-control select {
+    min-width: 200px;
+    /* Atur lebar minimal dropdown */
+}
+
+/* Membuat kolom catatan (notes) tidak terlalu lebar di tabel */
+#summary_table .notes-column {
+    max-width: 250px;
+    white-space: pre-wrap;
+    /* Memungkinkan line break */
+    word-wrap: break-word;
+}
