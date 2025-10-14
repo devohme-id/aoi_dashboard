@@ -121,7 +121,8 @@ function handleDataTable($conn)
             COUNT(i.InspectionID) AS Inspected,
             SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) AS Pass,
             SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) AS Defect,
-            SUM(CASE WHEN i.FinalResult = 'False Fail' THEN 1 ELSE 0 END) AS FalseCall,
+            SUM(CASE WHEN i.FinalResult = 'False Fail' THEN 1 ELSE 0 END) + SUM(CASE WHEN i.FinalResult = 'Unreviewed' THEN 1 ELSE 0 END) AS FalseCall,
+            #SUM(CASE WHEN i.FinalResult = 'Unreviewed' THEN 1 ELSE 0 END) AS Unreviewed,
             (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS PassRate,
             (SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 1000000 AS PPM
         " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY EndTime DESC LIMIT ?, ?";
@@ -165,6 +166,7 @@ function handleExport($conn)
             SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) AS Pass,
             SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) AS Defect,
             SUM(CASE WHEN i.FinalResult = 'False Fail' THEN 1 ELSE 0 END) AS 'False Call',
+            SUM(CASE WHEN i.FinalResult = 'Unreviewed' THEN 1 ELSE 0 END) AS 'Unreviewed',
             (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS 'Pass Rate (%)',
             (SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 1000000 AS PPM
         " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY Timestamp DESC";
