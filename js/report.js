@@ -36,6 +36,7 @@ $(document).ready(function() {
             { "data": "Pass", "title": "Pass" },
             { "data": "Defect", "title": "Defect" },
             { "data": "FalseCall", "title": "False Call" },
+            // { "data": "Unreviewed", "title": "Unreviewed" },
             { "data": "PassRate", "title": "Pass Rate (%)" },
             { "data": "PPM", "title": "PPM" }
         ],
