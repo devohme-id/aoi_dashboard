@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart AOI Dashboard</title>
+    <title>Smart AOI</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="js/charts.js"></script>
     <script src="js/chartjs-plugin-datalabels.js"></script>
