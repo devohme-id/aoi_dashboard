@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
   // === Konfigurasi & Variabel Global ===
-  const API_URL = "api/feedback_handler.php";
+  // const API_URL = "api/feedback_handler.php";
+  const API_URL = "/aoi_dashboard/api/feedback_handler.php";
+
   const CURRENT_ANALYST_ID = 8;
   let verificationData = [];
   let selectedDefectId = null;
@@ -13,24 +15,32 @@ document.addEventListener("DOMContentLoaded", () => {
   const lineFilter = document.getElementById("line-filter");
   const defectFilter = document.getElementById("defect-filter");
 
-  // === Fungsi Utama ===
+  // // === Fungsi Utama ===
   async function fetchFeedbackData() {
     showLoading(true);
-    try {
-      const response = await fetch(API_URL);
-      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      verificationData = data;
-      populateFilters();
-      applyFilters();
-    } catch (error) {
-      console.error("Gagal mengambil data feedback:", error);
-      showErrorState("Failed to load data. Please try again later.");
-    } finally {
-      showLoading(false);
-    }
+      try {
+        const searchQuery = document.getElementById("search-input").value.trim();
+        const url = new URL(API_URL, window.location.origin);
+        if (searchQuery !== "") {
+          url.searchParams.append("search-input", searchQuery);
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        verificationData = data;
+        populateFilters();
+        applyFilters();
+      } catch (error) {
+        console.error("Gagal mengambil data feedback:", error);
+        showErrorState("Failed to load data. Please try again later.");
+      } finally {
+        showLoading(false);
+      }
   }
+
 
   function renderTable(dataToRender) {
     if (dataToRender.length === 0) {
@@ -349,4 +359,10 @@ document.addEventListener("DOMContentLoaded", () => {
   updateClock();
   setInterval(updateClock, 1000);
   fetchFeedbackData();
+
+  document.getElementById("search-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  fetchFeedbackData(); // fetch ulang dengan query baru
+});
+
 });

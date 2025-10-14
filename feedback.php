@@ -41,6 +41,15 @@
             <div class="list-header">
                 <h2>Verification Queue</h2>
                 <p>Items requiring analyst review.</p>
+                <form action="#" method="get" id="search-form">
+                    <div class="filter-control">
+                        <label for="search-input">Cari Assembly</label>
+                        <input type="text" id="search-input" name="search-input" placeholder="Cari Assembly..." title="Cari Assembly">
+                    </div>
+                    <div style="align-self: flex-end;">
+                        <button id="filter-btn" class="btn-filter">Cari</button>
+                    </div>
+                </form>
                 <!-- PENAMBAHAN: Filter Controls -->
                 <div class="list-filters">
                     <div class="filter-control">
