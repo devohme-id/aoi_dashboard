@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/feedback.css">
     <link rel="stylesheet" href="css/notiflix.css">
+    <!-- Tambahkan CSS untuk Flatpickr -->
+    <link rel="stylesheet" href="css/flatpickr.min.css">
 </head>
 
 <body>
@@ -34,7 +36,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.2rem;">
                     <path d="M6 1v3H1V1h5zM1 0a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1H1zm14 12v3h-5v-3h5zm-5-1a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h5a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-5zM2 9v7h3V9H2zM1 8a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H1zm12-8v7h3V0h-3zm-4 0v7h3V0h-3z" />
                 </svg>
-                <span>DEBUGGING</span>
+                <span>TUNING</span>
             </a>
             <div class="header-clock">
                 <p id="clock">00:00:00</p>
@@ -48,6 +50,7 @@
             <div class="list-header">
                 <h2>Verification Queue</h2>
                 <p>Items requiring analyst review.</p>
+                <!-- *** PERUBAHAN: Penambahan filter Assembly dan Date Range *** -->
                 <div class="list-filters">
                     <div class="filter-control"><label for="line-filter">Line</label><select id="line-filter">
                             <option value="">All Lines</option>
@@ -55,6 +58,8 @@
                     <div class="filter-control"><label for="defect-filter">Defect</label><select id="defect-filter">
                             <option value="">All Defects</option>
                         </select></div>
+                    <div class="filter-control"><label for="assembly-filter">Assembly</label><input type="text" id="assembly-filter" placeholder="Search Assembly..."></div>
+                    <div class="filter-control"><label for="date-range-filter">Date Range</label><input type="text" id="date-range-filter" placeholder="Select date range..."></div>
                 </div>
             </div>
             <div class="table-container">
@@ -87,8 +92,10 @@
             <div id="detail-view-content" class="hidden"></div>
         </div>
     </main>
-    <script src="js/feedback.js"></script>
     <script src="js/notiflix.js"></script>
+    <!-- Tambahkan JS untuk Flatpickr -->
+    <script src="js/flatpickr.min.js"></script>
+    <script src="js/feedback.js"></script>
 </body>
 
 </html>

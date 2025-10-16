@@ -20,7 +20,7 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         handleFeedbackSubmission($conn);
     } else {
-        getFeedbackQueue($conn);
+        getFeedbackData($conn);
     }
 } catch (Exception $e) {
     http_response_code(500);
@@ -29,38 +29,41 @@ try {
     if (isset($conn)) $conn->close();
 }
 
-function getFeedbackQueue($conn)
+function getFeedbackData($conn)
 {
-    // PERUBAHAN TOTAL: Query sekarang mengambil setiap defect unik yang belum diverifikasi.
-    $query = "
+    // 1. Ambil semua line produksi yang ada
+    $lines_query = "SELECT LineID, LineName FROM ProductionLines ORDER BY LineID ASC";
+    $lines_result = $conn->query($lines_query);
+    if (!$lines_result) throw new Exception("Query failed [lines]: " . $conn->error);
+    $all_lines = [];
+    while ($row = $lines_result->fetch_assoc()) {
+        $all_lines[] = $row;
+    }
+
+    // 2. Ambil antrean verifikasi (defect yang belum diverifikasi)
+    // *** PERBAIKAN: Logika query diperjelas untuk relevansi data ***
+    $queue_query = "
         SELECT 
-            d.DefectID,
-            d.MachineDefectCode,
-            d.ComponentRef,
-            d.PartNumber,
-            d.ImageFileName,
-            i.InspectionID,
-            i.EndTime,
-            i.FinalResult,
-            i.Assembly,
-            i.LotCode,
-            i.LineID,
+            d.DefectID, d.MachineDefectCode, d.ComponentRef, d.PartNumber, d.ImageFileName,
+            i.InspectionID, i.EndTime, i.FinalResult, i.Assembly, i.LotCode, i.LineID,
             pl.LineName,
             op.FullName AS OperatorName
         FROM Defects d
         JOIN Inspections i ON d.InspectionID = i.InspectionID
+        LEFT JOIN FeedbackLog fl ON d.DefectID = fl.DefectID
         LEFT JOIN Users op ON i.OperatorUserID = op.UserID
         LEFT JOIN ProductionLines pl ON i.LineID = pl.LineID
-        WHERE d.DefectID NOT IN (SELECT DISTINCT DefectID FROM FeedbackLog)
+        WHERE 
+            i.FinalResult IN ('Defective', 'False Fail', 'Unreviewed')
+            AND fl.FeedbackID IS NULL
         ORDER BY i.EndTime DESC, d.DefectID ASC
         LIMIT 300;
     ";
+    $queue_result = $conn->query($queue_query);
+    if (!$queue_result) throw new Exception("Query failed [queue]: " . $conn->error);
 
-    $result = $conn->query($query);
-    if (!$result) throw new Exception("Query failed: " . $conn->error);
-
-    $data = [];
-    while ($row = $result->fetch_assoc()) {
+    $queue_data = [];
+    while ($row = $queue_result->fetch_assoc()) {
         $image_url = null;
         if (!empty($row['ImageFileName'])) {
             $path_parts = explode('\\', $row['ImageFileName']);
@@ -72,16 +75,21 @@ function getFeedbackQueue($conn)
         }
         $row['image_url'] = $image_url;
         $row['is_critical'] = in_array(strtoupper($row['MachineDefectCode']), CRITICAL_DEFECTS);
-        $data[] = $row;
+        $queue_data[] = $row;
     }
-    echo json_encode($data);
+
+    // 3. Kembalikan data dalam format objek yang terstruktur
+    echo json_encode([
+        'all_lines' => $all_lines,
+        'verification_queue' => $queue_data
+    ]);
 }
+
 
 function handleFeedbackSubmission($conn)
 {
     $data = json_decode(file_get_contents('php://input'), true);
 
-    // PERUBAHAN: Validasi sekarang menggunakan defect_id
     if (!isset($data['defect_id']) || !is_numeric($data['defect_id']) || !isset($data['decision']) || empty($data['decision'])) {
         throw new Exception("Invalid input: Defect ID and decision are required.");
     }
@@ -91,7 +99,6 @@ function handleFeedbackSubmission($conn)
     $decision = $data['decision'];
     $notes = $data['notes'] ?? null;
 
-    // PERUBAHAN: INSERT sekarang ke kolom DefectID
     $stmt = $conn->prepare(
         "INSERT INTO FeedbackLog (DefectID, AnalystUserID, AnalystDecision, AnalystNotes) VALUES (?, ?, ?, ?)"
     );

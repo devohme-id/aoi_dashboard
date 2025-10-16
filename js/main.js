@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Chart.register(ChartDataLabels);
     alertAudio = document.getElementById('alert-sound');
     const soundToggleBtn = document.getElementById('sound-toggle-btn');
+    const panelArea = document.getElementById('panel-area');
 
     if (alertAudio) {
         alertAudio.addEventListener('ended', () => {
@@ -39,26 +40,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Create initial HTML structure
-    const panelArea = document.getElementById('panel-area');
+    // Buat struktur HTML awal
     let content = '';
     for (let i = 1; i <= 6; i++) {
         content += createPanelHTML(i);
     }
     panelArea.innerHTML = content;
 
-    // Add event listeners after creation
-    for (let i = 1; i <= 6; i++) {
-        const imageContainer = document.getElementById(`image_container_${i}`);
-        if (imageContainer) {
-            imageContainer.addEventListener('click', function() {
-                const lineNumber = this.getAttribute('data-line');
-                window.location.href = `feedback.php?line=${lineNumber}`;
-            });
+    // *** PERBAIKAN: Menggunakan Event Delegation untuk klik yang lebih andal ***
+    panelArea.addEventListener('click', function(event) {
+        // Cari elemen .image-container terdekat dari elemen yang di-klik
+        const imageContainer = event.target.closest('.image-container');
+        
+        // Jika ditemukan dan memiliki atribut data-line, lakukan navigasi
+        if (imageContainer && imageContainer.dataset.line) {
+            const lineNumber = imageContainer.dataset.line;
+            window.location.href = `feedback.php?line=${lineNumber}`;
         }
-    }
+    });
 
-    // Start data fetching
+    // Mulai pengambilan data
     fetchData();
     setInterval(fetchData, REFRESH_INTERVAL);
     updateClock();

@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const API_URL = "api/feedback_handler.php";
   const CURRENT_ANALYST_ID = 8;
   let verificationData = [];
+  let allLinesData = [];
   let selectedDefectId = null;
 
   // === Elemen DOM ===
@@ -10,8 +11,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const loadingIndicator = document.getElementById("loading-indicator");
   const detailPlaceholder = document.getElementById("detail-view-placeholder");
   const detailContent = document.getElementById("detail-view-content");
+  
+  // *** PERUBAHAN: Tambahkan selector untuk filter baru ***
   const lineFilter = document.getElementById("line-filter");
   const defectFilter = document.getElementById("defect-filter");
+  const assemblyFilter = document.getElementById("assembly-filter");
+  const dateRangeFilterEl = document.getElementById("date-range-filter");
+
+  // Inisialisasi Flatpickr
+  const datePicker = flatpickr(dateRangeFilterEl, {
+      mode: "range",
+      dateFormat: "Y-m-d",
+      onChange: function(selectedDates, dateStr, instance) {
+          applyFilters(); // Terapkan filter saat tanggal berubah
+      }
+  });
+
 
   // === Fungsi Utama ===
   async function fetchFeedbackData() {
@@ -21,14 +36,30 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
       const data = await response.json();
       if (data.error) throw new Error(data.error);
-      verificationData = data;
+
+      verificationData = data.verification_queue;
+      allLinesData = data.all_lines;
+
       populateFilters();
+      applyInitialUrlFilter(); 
       applyFilters();
+
     } catch (error) {
       console.error("Gagal mengambil data feedback:", error);
       showErrorState("Failed to load data. Please try again later.");
     } finally {
       showLoading(false);
+    }
+  }
+
+  function applyInitialUrlFilter() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const lineIdFromUrl = urlParams.get('line');
+    if (lineIdFromUrl) {
+        const targetLine = allLinesData.find(line => line.LineID == lineIdFromUrl);
+        if (targetLine) {
+            lineFilter.value = targetLine.LineName;
+        }
     }
   }
 
@@ -78,9 +109,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ? '<span class="badge badge-yellow">FALSE FAIL</span>'
         : '<span class="badge badge-red">DEFECTIVE</span>';
 
-    // =================================================================
-    // PERUBAHAN: HTML untuk card-style radio button
-    // =================================================================
     detailContent.innerHTML = `
             <div class="detail-content-wrapper">
                 <div class="detail-image-container">
@@ -157,10 +185,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </label>
                             </div>
                         </div>
-                        <!-- <div class="form-group">
-                            <label for="notes">Notes</label>
-                            <textarea id="notes" placeholder="Add notes if necessary..."></textarea>
-                        </div> -->
                         <button type="submit" class="btn-submit-feedback">Submit Verification</button>
                     </form>
                 </div>
@@ -174,7 +198,6 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
 
     if (!selectedDefectId) {
-        //alert("Error: No defect selected. Please select an item from the list.");
         Notiflix.Notify.warning("Error: No defect selected. Please select an item from the list.");
       return;
     }
@@ -187,7 +210,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const decision = formData.get("decision");
 
     if (!decision) {
-      //alert("Please select a decision.");
       Notiflix.Notify.warning("Please select a decision.");
       btn.disabled = false;
       btn.textContent = "Submit Verification";
@@ -222,53 +244,57 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       console.error("Submission failed:", error);
       Notiflix.Notify.failure(`Submission failed: ${error}`);
-      //alert("Failed to submit feedback. Check console for details.");
       btn.disabled = false;
       btn.textContent = "Submit Verification";
     }
   }
 
   function populateFilters() {
-    const lines = [
-      ...new Set(verificationData.map((item) => item.LineName).filter(Boolean)),
-    ];
-    const defects = [
-      ...new Set(
-        verificationData.map((item) => item.MachineDefectCode).filter(Boolean)
-      ),
-    ];
-
     const currentLine = lineFilter.value;
     const currentDefect = defectFilter.value;
 
     lineFilter.innerHTML = '<option value="">All Lines</option>';
     defectFilter.innerHTML = '<option value="">All Defects</option>';
 
-    lines
-      .sort()
-      .forEach(
-        (line) =>
-          (lineFilter.innerHTML += `<option value="${line}">${line}</option>`)
-      );
-    defects
-      .sort()
-      .forEach(
-        (defect) =>
-          (defectFilter.innerHTML += `<option value="${defect}">${defect}</option>`)
-      );
+    allLinesData.forEach(line => {
+      lineFilter.innerHTML += `<option value="${line.LineName}">${line.LineName}</option>`;
+    });
+
+    const defectsInQueue = [...new Set(verificationData.map((item) => item.MachineDefectCode).filter(Boolean))];
+    defectsInQueue.sort().forEach(defect => {
+      defectFilter.innerHTML += `<option value="${defect}">${defect}</option>`;
+    });
 
     lineFilter.value = currentLine;
     defectFilter.value = currentDefect;
   }
 
+  // *** PERUBAHAN: Logika filter diperbarui untuk menangani input baru ***
   function applyFilters() {
     const selectedLine = lineFilter.value;
     const selectedDefect = defectFilter.value;
+    const assemblyQuery = assemblyFilter.value.toLowerCase();
+    const selectedDates = datePicker.selectedDates;
+
     const filteredData = verificationData.filter((item) => {
       const lineMatch = !selectedLine || item.LineName === selectedLine;
-      const defectMatch =
-        !selectedDefect || item.MachineDefectCode === selectedDefect;
-      return lineMatch && defectMatch;
+      const defectMatch = !selectedDefect || item.MachineDefectCode === selectedDefect;
+      const assemblyMatch = !assemblyQuery || (item.Assembly && item.Assembly.toLowerCase().includes(assemblyQuery));
+      
+      let dateMatch = true;
+      if (selectedDates.length === 2) {
+          const itemDate = new Date(item.EndTime);
+          // Set jam ke 0 untuk perbandingan tanggal saja
+          itemDate.setHours(0, 0, 0, 0);
+          const startDate = selectedDates[0];
+          startDate.setHours(0,0,0,0);
+          const endDate = selectedDates[1];
+          endDate.setHours(0,0,0,0);
+          
+          dateMatch = itemDate >= startDate && itemDate <= endDate;
+      }
+
+      return lineMatch && defectMatch && assemblyMatch && dateMatch;
     });
 
     const isSelectedVisible = filteredData.some(
@@ -328,8 +354,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target.id === "verification-form") handleFormSubmit(e);
   });
 
+  // *** PERUBAHAN: Tambahkan event listener untuk filter baru ***
   lineFilter.addEventListener("change", applyFilters);
   defectFilter.addEventListener("change", applyFilters);
+  assemblyFilter.addEventListener("keyup", applyFilters);
+
 
   function updateClock() {
     const now = new Date();
