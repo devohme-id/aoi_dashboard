@@ -2,15 +2,15 @@
 // Konfigurasi Aplikasi
 // ==========================================================================
 const API_URL = 'api/get_dashboard_data.php';
-const REFRESH_INTERVAL = 5000; // 5 detik
+const REFRESH_INTERVAL = 5000;
 const TARGET_PASS_RATE = 90;
 const TARGET_PPM = 2100;
-const SOUND_DELAY = 1000; // Jeda 2 detik antar pemutaran suara
-const lineCharts = {}; // Objek untuk menyimpan instance chart
-let alertAudio; // Variabel untuk elemen audio
-let isSoundLooping = false; // Flag untuk mengontrol loop suara kustom
-let isMuted = true; // Suara dimulai dalam keadaan 'muted'
-let soundUnlocked = false; // Flag untuk menandai interaksi pertama pengguna
+const SOUND_DELAY = 2000;
+const lineCharts = {};
+let alertAudio;
+let isSoundLooping = false;
+let isMuted = true;
+let soundUnlocked = false;
 
 // ==========================================================================
 // Inisialisasi Aplikasi
@@ -22,39 +22,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (alertAudio) {
         alertAudio.addEventListener('ended', () => {
-            if (isSoundLooping) {
-                setTimeout(playAlertSound, SOUND_DELAY);
-            }
+            if (isSoundLooping) setTimeout(playAlertSound, SOUND_DELAY);
         });
     }
 
     if (soundToggleBtn) {
         soundToggleBtn.addEventListener('click', () => {
-            // Interaksi pertama untuk 'membuka kunci' audio
             if (!soundUnlocked) {
                 soundUnlocked = true;
-                // Coba putar dan jeda audio untuk memenuhi kebijakan browser
-                alertAudio.play().then(() => alertAudio.pause()).catch(()=>{});
+                alertAudio.play().then(() => alertAudio.pause()).catch(() => {});
             }
-
-            // Toggle status mute
             isMuted = !isMuted;
             soundToggleBtn.classList.toggle('muted', isMuted);
-            
-            // Segarkan status suara berdasarkan kondisi alert saat ini
             const isCriticalActive = document.querySelector('.critical-alert') !== null;
             manageAlertSound(isCriticalActive);
         });
     }
+    
+    // Create initial HTML structure
+    const panelArea = document.getElementById('panel-area');
+    let content = '';
+    for (let i = 1; i <= 6; i++) {
+        content += createPanelHTML(i);
+    }
+    panelArea.innerHTML = content;
 
-    const startDashboard = () => {
-        fetchData();
-        setInterval(fetchData, REFRESH_INTERVAL);
-        updateClock();
-        setInterval(updateClock, 1000);
-    };
-    startDashboard();
+    // Add event listeners after creation
+    for (let i = 1; i <= 6; i++) {
+        const imageContainer = document.getElementById(`image_container_${i}`);
+        if (imageContainer) {
+            imageContainer.addEventListener('click', function() {
+                const lineNumber = this.getAttribute('data-line');
+                window.location.href = `feedback.php?line=${lineNumber}`;
+            });
+        }
+    }
+
+    // Start data fetching
+    fetchData();
+    setInterval(fetchData, REFRESH_INTERVAL);
+    updateClock();
+    setInterval(updateClock, 1000);
 });
+
 
 // ==========================================================================
 // Fungsi Pengambilan & Pembaruan Data
@@ -67,44 +77,29 @@ async function fetchData() {
         if (data.error) throw new Error(data.error);
         updateDashboardUI(data.lines || {});
     } catch (error) {
-        console.error('Gagal mengambil data:', error);
+        console.error('Failed to fetch data:', error);
     }
 }
 
 function updateDashboardUI(linesData) {
-    const panelArea = document.getElementById('panel-area');
-    if (panelArea.children.length === 0) {
-        let content = '';
-        for (let i = 1; i <= 6; i++) {
-            content += createPanelHTML(i);
-        }
-        panelArea.innerHTML = content;
-    }
-
     let isAnyCriticalAlertActive = false;
     for (let i = 1; i <= 6; i++) {
         const lineKey = `line_${i}`;
         const lineData = linesData[lineKey] || createDefaultLineData();
         updateSinglePanel(i, lineData);
-        if (lineData.is_critical_alert) {
-            isAnyCriticalAlertActive = true;
-        }
+        if (lineData.is_critical_alert) isAnyCriticalAlertActive = true;
     }
-    
     manageAlertSound(isAnyCriticalAlertActive);
 }
 
 // ==========================================================================
-// Manajemen Suara dengan Jeda dan Kontrol Mute
+// Manajemen Suara
 // ==========================================================================
 function manageAlertSound(shouldPlay) {
-    // Mulai loop hanya jika: harus main, tidak di-mute, audio sudah 'unlocked', dan loop belum berjalan
     if (shouldPlay && !isMuted && soundUnlocked && !isSoundLooping) {
         isSoundLooping = true;
         playAlertSound();
-    } 
-    // Hentikan loop jika: tidak harus main, ATAU di-mute
-    else if ((!shouldPlay || isMuted) && isSoundLooping) {
+    } else if ((!shouldPlay || isMuted) && isSoundLooping) {
         isSoundLooping = false;
         if (alertAudio) {
             alertAudio.pause();
@@ -116,104 +111,114 @@ function manageAlertSound(shouldPlay) {
 function playAlertSound() {
     if (isSoundLooping && alertAudio) {
         alertAudio.play().catch(e => {
-            console.warn("Gagal memutar audio:", e.name);
-            // Jika gagal karena belum di-unlock, hentikan loop agar tidak mencoba terus-menerus
-            if (e.name === 'NotAllowedError') {
-                isSoundLooping = false;
-            }
+            if (e.name === 'NotAllowedError') isSoundLooping = false;
         });
     }
 }
-
 
 // ==========================================================================
 // Fungsi Pembaruan UI per Panel
 // ==========================================================================
 function updateSinglePanel(lineNumber, data) {
-    let status_normalized;
-    let status_text = data.status;
-
-    if (data.is_critical_alert) {
-        status_normalized = 'defective'; 
-    } else {
-        status_normalized = normalizeStatus(data.status);
-    }
-
+    const status_normalized = normalizeStatus(data.is_critical_alert ? 'Defective' : data.status);
     const statusElement = document.getElementById(`panel_status_${lineNumber}`);
-    statusElement.textContent = status_text;
+    statusElement.textContent = data.status;
     statusElement.className = `panel-status status-${status_normalized}`;
 
-    const details = data.details;
-    document.getElementById(`detail_assembly_${lineNumber}`).textContent = data.kpi.assembly;
+    const { details, kpi } = data;
+    document.getElementById(`detail_assembly_${lineNumber}`).textContent = kpi.assembly;
     document.getElementById(`detail_time_${lineNumber}`).textContent = details.time;
     document.getElementById(`detail_ref_${lineNumber}`).textContent = details.component_ref;
     document.getElementById(`detail_part_${lineNumber}`).textContent = details.part_number;
     document.getElementById(`detail_machine_defect_${lineNumber}`).textContent = details.machine_defect;
     document.getElementById(`detail_inspect_${lineNumber}`).textContent = details.inspection_result;
     document.getElementById(`detail_review_${lineNumber}`).textContent = details.review_result;
-
-    const imageContainer = document.getElementById(`image_container_${lineNumber}`);
-    imageContainer.className = `image-container status-${status_normalized}`; 
-    const imageContent = data.image_url
-        ? `<img src="${data.image_url}" alt="Defect" class="defect-image">`
-        : `<div class="pcb-visual-placeholder pcb-visual-${status_normalized}"><span>${data.status === 'INACTIVE' ? 'NO SIGNAL' : data.status}</span></div>`;
-    imageContainer.innerHTML = imageContent;
-
-    const kpi = data.kpi;
-    const passRateEl = document.getElementById(`kpi_pass_rate_${lineNumber}`);
-    const ppmEl = document.getElementById(`kpi_ppm_${lineNumber}`);
     
-    passRateEl.textContent = `${kpi.pass_rate}%`;
-    passRateEl.className = 'kpi-value';
-    passRateEl.classList.toggle('kpi-good', parseFloat(kpi.pass_rate) >= TARGET_PASS_RATE);
-    passRateEl.classList.toggle('kpi-bad', parseFloat(kpi.pass_rate) < TARGET_PASS_RATE);
+    const imageContainer = document.getElementById(`image_container_${lineNumber}`);
+    imageContainer.className = `image-container status-${status_normalized}`;
+    const imageContent = data.image_url ?
+        `<img src="${data.image_url}" alt="Defect" class="defect-image">` :
+        `<div class="pcb-visual-placeholder pcb-visual-${status_normalized}"><span>${data.status === 'INACTIVE' ? 'NO SIGNAL' : data.status}</span></div>`;
+    imageContainer.innerHTML = imageContent;
+    imageContainer.classList.toggle('critical-alert', data.is_critical_alert);
 
+    // Update KPI values
+    const passRateEl = document.getElementById(`kpi_pass_rate_${lineNumber}`);
+    passRateEl.textContent = `${kpi.pass_rate}%`;
+    passRateEl.classList.toggle('kpi-good', kpi.pass_rate >= TARGET_PASS_RATE);
+    passRateEl.classList.toggle('kpi-bad', kpi.pass_rate < TARGET_PASS_RATE);
+
+    const ppmEl = document.getElementById(`kpi_ppm_${lineNumber}`);
     ppmEl.textContent = kpi.ppm;
-    ppmEl.className = 'kpi-value';
     ppmEl.classList.toggle('kpi-good', kpi.ppm <= TARGET_PPM);
     ppmEl.classList.toggle('kpi-bad', kpi.ppm > TARGET_PPM);
-
+    
     document.getElementById(`kpi_inspected_${lineNumber}`).textContent = kpi.total_inspected;
     document.getElementById(`kpi_pass_${lineNumber}`).textContent = kpi.total_pass;
     document.getElementById(`kpi_false_call_${lineNumber}`).textContent = kpi.total_false_call;
-    
-    imageContainer.classList.toggle('critical-alert', data.is_critical_alert);
 
-    updateChart(lineNumber, data.pass_rate_history);
+    // Panggil fungsi untuk update grafik
+    updateComparisonChart(lineNumber, data.comparison_data);
 }
 
-function updateChart(lineNumber, chartData) {
-    const canvas = document.getElementById(`passRateChart_${lineNumber}`);
+// *** FUNGSI CHART DIPERBARUI ***
+function updateComparisonChart(lineNumber, data) {
+    const chartId = `comparisonChart_${lineNumber}`;
+    const canvas = document.getElementById(chartId);
     if (!canvas) return;
 
-    if (lineCharts[lineNumber]) {
-        lineCharts[lineNumber].data.labels = chartData.labels;
-        lineCharts[lineNumber].data.datasets[0].data = chartData.data;
-        lineCharts[lineNumber].update();
+    const beforeValue = data.before.pass_rate;
+    const currentValue = data.current.pass_rate;
+
+    if (lineCharts[chartId]) {
+        // Hanya update data, tidak perlu membuat chart baru
+        lineCharts[chartId].data.datasets[0].data = [beforeValue, currentValue];
+        lineCharts[chartId].update();
     } else {
-        lineCharts[lineNumber] = new Chart(canvas.getContext('2d'), {
-            type: 'line',
+        // Buat chart baru jika belum ada
+        lineCharts[chartId] = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
             data: {
-                labels: chartData.labels,
+                labels: ['Before', 'Current'],
                 datasets: [{
-                    label: 'Pass Rate (%)', data: chartData.data,
-                    backgroundColor: 'rgba(34, 211, 238, 0.2)', borderColor: 'rgba(34, 211, 238, 1)',
-                    borderWidth: 2, pointBackgroundColor: '#fff', tension: 0.3
+                    label: 'Pass Rate',
+                    data: [beforeValue, currentValue],
+                    backgroundColor: ['#475569', '#22d3ee'], // Abu-abu untuk 'Before', Cyan untuk 'Current'
+                    borderColor: ['#475569', '#22d3ee'],
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.6, // Membuat bar lebih ramping
+                    categoryPercentage: 0.7
                 }]
             },
             options: {
-                responsive: true, maintainAspectRatio: false,
+                responsive: true,
+                maintainAspectRatio: false,
                 scales: {
-                    x: { ticks: { display: false }, grid: { display: false }, offset: true },
-                    y: { min: 0, max: 100, ticks: { stepSize: 20, color: '#94a3b8' }, grid: { color: '#ffffff20', drawBorder: false } }
+                    x: { ticks: { color: '#e2e8f0', font: { size: 12 } }, grid: { display: false } },
+                    y: { 
+                        display: true, // Tampilkan sumbu Y
+                        beginAtZero: true, 
+                        max: 100, // Skala 0-100%
+                        ticks: { color: '#94a3b8', stepSize: 25 }, 
+                        grid: { color: '#ffffff20', drawBorder: false }
+                    }
                 },
                 plugins: {
-                    legend: { display: false },
-                    title: { display: true, text: 'Pass Rate Trend (%)', color: '#e2e8f0', padding: { bottom: 10 } },
+                    legend: { display: false }, // Sembunyikan legenda
+                    title: {
+                        display: true,
+                        text: 'Pass Rate (%) Comparison',
+                        color: '#e2e8f0',
+                        font: { size: 14, family: 'MyFontHeadline' },
+                        padding: { bottom: 10 }
+                    },
                     datalabels: {
-                        display: true, align: 'top', color: '#e2e8f0',
-                        font: { size: 12, family: 'MyFontText' },
-                        formatter: (value) => `${value}%`
+                        anchor: 'end',
+                        align: 'top',
+                        color: '#e2e8f0',
+                        font: { size: 14, weight: 'bold' },
+                        formatter: (value) => `${value}%` // Format sebagai persentase
                     }
                 }
             }
@@ -221,33 +226,33 @@ function updateChart(lineNumber, chartData) {
     }
 }
 
+
 // ==========================================================================
 // Fungsi Utilitas
 // ==========================================================================
 function updateClock() {
     const now = new Date();
     document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID', { hour12: false });
-    document.getElementById('date').textContent = now.toLocaleDateString('id-ID', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-    });
+    document.getElementById('date').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-function normalizeStatus(status) {
-    return (status || 'inactive').toLowerCase().replace(' ', '_');
-}
+function normalizeStatus(status) { return (status || 'inactive').toLowerCase().replace(' ', '_'); }
 
 function createDefaultLineData() {
     return {
         status: 'INACTIVE',
-        details: { time: 'N/A', component_ref: 'N/A', part_number: 'N/A', machine_defect: 'N/A', inspection_result: 'N/A', review_result: 'N/A' },
-        kpi: { assembly: 'N/A', total_inspected: 0, total_pass: 0, total_false_call: 0, pass_rate: '0', ppm: 0 },
-        pass_rate_history: { labels: [], data: [] },
-        image_url: null,
-        is_critical_alert: false
+        details: createDefaultDetails(),
+        kpi: createDefaultKpi(),
+        comparison_data: createDefaultComparison(),
+        image_url: null, is_critical_alert: false
     };
 }
+function createDefaultDetails() { return { time: 'N/A', component_ref: 'N/A', part_number: 'N/A', machine_defect: 'N/A', inspection_result: 'N/A', review_result: 'N/A' }; }
+function createDefaultKpi() { return { assembly: 'N/A', total_inspected: 0, total_pass: 0, total_defect: 0, total_false_call: 0, pass_rate: 0, ppm: 0 }; }
+function createDefaultComparison() { return { before: createDefaultKpi(), current: createDefaultKpi() }; }
 
 function createPanelHTML(lineNumber) {
+    // Kembali ke struktur HTML asli yang stabil
     return `
     <div class="card-ui">
         <div class="panel-header">
@@ -265,7 +270,7 @@ function createPanelHTML(lineNumber) {
                 <div class="detail-item"><span class="detail-label">Inspection</span><span id="detail_inspect_${lineNumber}" class="detail-value">N/A</span></div>
                 <div class="detail-item"><span class="detail-label">Review</span><span id="detail_review_${lineNumber}" class="detail-value">N/A</span></div>
             </div>
-            <div id="image_container_${lineNumber}" class="image-container status-inactive"></div>
+            <div id="image_container_${lineNumber}" class="image-container status-inactive" data-line="${lineNumber}"></div>
         </div>
         <div class="panel-kpi-grid">
             <div class="kpi-item"><div id="kpi_pass_rate_${lineNumber}" class="kpi-value">0%</div><div class="kpi-label">Pass Rate</div></div>
@@ -275,7 +280,7 @@ function createPanelHTML(lineNumber) {
             <div class="kpi-item"><div id="kpi_false_call_${lineNumber}" class="kpi-value kpi-false_call-color">0</div><div class="kpi-label">False Call</div></div>
         </div>
         <div class="chart-container">
-            <canvas id="passRateChart_${lineNumber}"></canvas>
+            <canvas id="comparisonChart_${lineNumber}"></canvas>
         </div>
     </div>`;
 }
