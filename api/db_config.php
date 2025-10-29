@@ -1,24 +1,36 @@
 <?php
-// File: api/db_config.php
+// =============================================
+// db_config.php (Optimized Version)
+// =============================================
 
-// Aktifkan mode exception untuk error koneksi MySQLi
-// Ini akan membuat error lebih mudah ditangkap oleh blok try-catch
-mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+// Database connection configuration
+$db_host = "192.168.12.207";         // or use internal IP if MySQL in same VM
+$db_user = "db_admin";    // recommended: non-root user
+$db_pass = "Ohm@2025";
+$db_name = "aoi_dashboard";
 
-// --- GANTI DENGAN DETAIL KONEKSI ANDA ---
-$servername = "192.168.12.204";
-$username = "db_admin";
-$password = "ohm@2025"; // Isi password Anda jika ada
-$dbname = "aoi_dashboard";
+// Enable persistent connection (prefix "p:")
+$conn = @new mysqli('p:' . $db_host, $db_user, $db_pass, $db_name);
 
-try {
-    $conn = new mysqli($servername, $username, $password, $dbname);
-    // Atur charset ke utf8mb4 untuk dukungan karakter yang lebih baik
+// Set proper charset
+if (!$conn->connect_errno) {
     $conn->set_charset("utf8mb4");
-} catch (mysqli_sql_exception $e) {
-    // Jika koneksi gagal, script akan berhenti di sini dan error akan ditangkap
-    // oleh blok try-catch di file get_dashboard_data.php
-    throw new Exception("Database Connection Error: " . $e->getMessage());
+} else {
+    error_log("[" . date("Y-m-d H:i:s") . "] MySQL connection failed: " . $conn->connect_error . "\n", 3, "/var/log/php-fpm/db_error.log");
+    http_response_code(500);
+    die(json_encode(["error" => "Database connection failed."]));
 }
 
-// Variabel $conn sekarang tersedia untuk file yang memanggil require_once 'db_config.php';
+// Optional: set connection timeout
+$conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
+
+// Optional function for safe query
+function safe_query($query) {
+    global $conn;
+    $result = $conn->query($query);
+    if (!$result) {
+        error_log("[" . date("Y-m-d H:i:s") . "] Query failed: " . $conn->error . "\n", 3, "/var/log/php-fpm/db_error.log");
+    }
+    return $result;
+}
+?>

@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43-0ubuntu0.24.04.2)
  File Encoding         : 65001
 
- Date: 15/10/2025 10:46:43
+ Date: 17/10/2025 15:19:40
 */
 
 SET NAMES utf8mb4;
@@ -39,7 +39,7 @@ CREATE TABLE `Defects`  (
   INDEX `idx_defects_isfalsecall`(`IsFalseCall` ASC) USING BTREE,
   INDEX `idx_defects_inspectionid`(`InspectionID` ASC) USING BTREE,
   CONSTRAINT `Defects_ibfk_1` FOREIGN KEY (`InspectionID`) REFERENCES `Inspections` (`InspectionID`) ON DELETE CASCADE ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 275298 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 415901 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for FeedbackLog
@@ -74,6 +74,7 @@ CREATE TABLE `Inspections`  (
   `ReworkUser` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `InitialResult` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'Hasil dari mesin (Pass/Fail)',
   `FinalResult` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'Hasil akhir (Pass/Fail/False Fail)',
+  `status` enum('TUNING','PRODUCTION') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'TUNING',
   `TotalLocations` int NULL DEFAULT NULL,
   `TotalDefects` int NULL DEFAULT 0,
   `TotalFalseCalls` int NULL DEFAULT 0,
@@ -81,15 +82,17 @@ CREATE TABLE `Inspections`  (
   `XML_R_Path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
   `RecordTimestamp` datetime NULL DEFAULT CURRENT_TIMESTAMP,
   `OperatorUserID` int NULL DEFAULT NULL,
+  `TuningCycleID` int NOT NULL DEFAULT 1 COMMENT 'Identifier for the program tuning cycle',
   PRIMARY KEY (`InspectionID`) USING BTREE,
   INDEX `IX_Inspections_EndTime`(`EndTime` ASC) USING BTREE,
   INDEX `IX_Inspections_LineID`(`LineID` ASC) USING BTREE,
   INDEX `idx_inspections_endtime`(`EndTime` ASC) USING BTREE,
   INDEX `idx_inspections_line_lot_assembly`(`LineID` ASC, `LotCode` ASC, `Assembly` ASC) USING BTREE,
   INDEX `OperatorUserID`(`OperatorUserID` ASC) USING BTREE,
+  INDEX `idx_inspections_tuningcycle`(`TuningCycleID` ASC) USING BTREE,
   CONSTRAINT `Inspections_ibfk_1` FOREIGN KEY (`LineID`) REFERENCES `ProductionLines` (`LineID`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `Inspections_ibfk_2` FOREIGN KEY (`OperatorUserID`) REFERENCES `Users` (`UserID`) ON DELETE RESTRICT ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 195318 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 233407 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for Machines
@@ -120,6 +123,22 @@ CREATE TABLE `ProcessingLogs`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 6081 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Mencatat setiap aktivitas pemrosesan file oleh DataCollectorService.' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
+-- Table structure for ProductionBaselines
+-- ----------------------------
+DROP TABLE IF EXISTS `ProductionBaselines`;
+CREATE TABLE `ProductionBaselines`  (
+  `BaselineID` int NOT NULL AUTO_INCREMENT,
+  `Assembly` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `LotCode` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `BaselineInspectionID` bigint NOT NULL,
+  `SetByUser` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT 'SYSTEM',
+  `Timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`BaselineID`) USING BTREE,
+  INDEX `fk_baseline_inspection`(`BaselineInspectionID` ASC) USING BTREE,
+  CONSTRAINT `fk_baseline_inspection` FOREIGN KEY (`BaselineInspectionID`) REFERENCES `Inspections` (`InspectionID`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Logs when a production baseline is set for a specific lot.' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for ProductionLines
 -- ----------------------------
 DROP TABLE IF EXISTS `ProductionLines`;
@@ -130,6 +149,25 @@ CREATE TABLE `ProductionLines`  (
   `ReworkIP` varchar(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`LineID`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 7 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
+-- Table structure for TuningCycles
+-- ----------------------------
+DROP TABLE IF EXISTS `TuningCycles`;
+CREATE TABLE `TuningCycles`  (
+  `CycleLogID` int NOT NULL AUTO_INCREMENT,
+  `LineID` int NOT NULL,
+  `Assembly` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `CycleVersion` int NOT NULL,
+  `StartedByUserID` int NULL DEFAULT NULL,
+  `StartTime` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `Notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  PRIMARY KEY (`CycleLogID`) USING BTREE,
+  INDEX `idx_tuningcycles_lookup`(`LineID` ASC, `Assembly` ASC) USING BTREE,
+  INDEX `fk_tuningcycles_user`(`StartedByUserID` ASC) USING BTREE,
+  CONSTRAINT `fk_tuningcycles_line` FOREIGN KEY (`LineID`) REFERENCES `ProductionLines` (`LineID`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `fk_tuningcycles_user` FOREIGN KEY (`StartedByUserID`) REFERENCES `Users` (`UserID`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 47 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Mencatat setiap kali siklus tuning baru dimulai.' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for Users
