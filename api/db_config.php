@@ -4,9 +4,12 @@
 // =============================================
 
 // Database connection configuration
-$db_host = "192.168.12.207";         // or use internal IP if MySQL in same VM
-$db_user = "db_admin";    // recommended: non-root user
-$db_pass = "Ohm@2025";
+// $db_host = "192.168.12.207";         // or use internal IP if MySQL in same VM
+// $db_user = "db_admin";    // recommended: non-root user
+// $db_pass = "Ohm@2025";
+$db_host = "127.0.0.1";         // or use internal IP if MySQL in same VM
+$db_user = "root";    // recommended: non-root user
+$db_pass = "root";
 $db_name = "aoi_dashboard";
 
 // Enable persistent connection (prefix "p:")

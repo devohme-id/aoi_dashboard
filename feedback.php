@@ -1,11 +1,11 @@
 <?php
 session_start();
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    // 1. Dapatkan nama file saat ini (misal: "feedback.php")
-    $current_page = basename($_SERVER['PHP_SELF']);
-    // 2. Redirect ke login.php DAN kirim nama halaman sebagai parameter URL
-    header("Location: login.php?redirect=" . urlencode($current_page));
-    exit;
+  // 1. Dapatkan nama file saat ini (misal: "feedback.php")
+  $current_page = basename($_SERVER['PHP_SELF']);
+  // 2. Redirect ke login.php DAN kirim nama halaman sebagai parameter URL
+  header("Location: login.php?redirect=" . urlencode($current_page));
+  exit;
 }
 
 // Variabel $username ini akan dipakai di header
@@ -26,46 +26,6 @@ $current_page = 'feedback.php';
   <link rel="stylesheet" href="css/feedback.css">
   <link rel="stylesheet" href="css/notiflix.css">
   <link rel="stylesheet" href="css/flatpickr.min.css">
-  <style>
-    /* --- Style untuk Info User di Header --- */
-
-    .header-clock-area {
-      /* Pastikan semua item di dalam header-clock-area sejajar */
-      align-items: center;
-    }
-
-    .header-user-info {
-      display: flex;
-      align-items: center;
-      padding: 0.5rem 1rem;
-      margin: 0 0.5rem;
-      color: var(--text-color);
-      background-color: var(--bg-color);
-      /* Warna sedikit beda dari background */
-      border-radius: var(--border-radius-md);
-      border: 1px solid var(--border-color);
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-
-    .header-user-info .user-icon {
-      margin-right: 0.5rem;
-      font-size: 1.1rem;
-      opacity: 0.8;
-    }
-
-    /* Style untuk Tombol Logout (terpisah) */
-    .btn-report.btn-logout {
-      background: #e11d48;
-      /* Warna merah */
-      color: var(--text-dark);
-    }
-
-    .btn-report.btn-logout:hover {
-      background: #c51a40;
-      /* Warna merah lebih gelap saat hover */
-    }
-  </style>
 </head>
 
 <body>
@@ -75,6 +35,15 @@ $current_page = 'feedback.php';
       <p class="header-subtitle">Operator & Machine Result Verification</p>
     </div>
     <div class="header-clock-area">
+
+      <div class="btn-report" style="background: linear-gradient(90deg, var(--blue-color),rgb(15, 87, 243)); color: var(--text-white);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.5rem;">
+          <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+          <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z" />
+        </svg>
+        <span id="userId" data-id="<?php echo $userId ?>"><?php echo $fullName; ?></span>
+      </div>
+
       <a href="index.php" class="btn-report <?= ($current_page == 'index.php') ? 'active-nav' : '' ?>" style="background: var(--gray-color); color: var(--text-color);">
         <span class="report-icon">🏠</span> DASHBOARD
       </a>
@@ -94,17 +63,30 @@ $current_page = 'feedback.php';
         <span>DEBUGGING</span>
       </a>
 
-      <div class="header-user-info">
-        <span class="user-icon">👤</span>
-        <span id="userId" data-id="<?php echo $userId ?>"><?php echo $fullName; ?></span>
-      </div>
-      <a href="logout.php?from=<?php echo urlencode($current_page); ?>" class="btn-report btn-logout">
-          <span class="report-icon">🚪</span> KELUAR
+      <button id="sound-toggle-btn" class="btn-report sound-btn muted" title="Enable/Disable Sound">
+        <svg class="sound-icon muted-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06zM6 5.04 4.312 6.39A.5.5 0 0 1 4 6.5H2v3h2a.5.5 0 0 1 .312.11L6 10.96V5.04zm7.854.606a.5.5 0 0 1 0 .708L12.207 8l1.647 1.646a.5.5 0 0 1-.708.708L11.5 8.707l-1.646 1.647a.5.5 0 0 1-.708-.708L10.793 8 9.146 6.354a.5.5 0 1 1 .708-.708L11.5 7.293l1.646-1.647a.5.5 0 0 1 .708 0z" />
+        </svg>
+        <svg class="sound-icon unmuted-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z" />
+          <path d="M10.121 12.596A6.48 6.48 0 0 0 12.025 8a6.48 6.48 0 0 0-1.904-4.596l-.707.707A5.482 5.482 0 0 1 11.025 8a5.482 5.482 0 0 1-1.61 3.89l.706.706z" />
+          <path d="M8.707 11.182A4.486 4.486 0 0 0 10.025 8a4.486 4.486 0 0 0-1.318-3.182L8 5.525A3.489 3.489 0 0 1 9.025 8 3.49 3.49 0 0 1 8 10.475l.707.707zM6.717 3.55A.5.5 0 0 1 7 4v8a.5.5 0 0 1-.812.39L3.825 10.5H1.5A.5.5 0 0 1 1 10V6a.5.5 0 0 1 .5-.5h2.325l2.363-1.89a.5.5 0 0 1 .529-.06z" />
+        </svg>
+      </button>
+
+      <a href="logout.php?from=<?php echo urlencode($current_page); ?>" class="btn-report" style="background: linear-gradient(90deg, var(--red-color),rgb(243, 140, 15)); color: var(--text-dark);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.2rem;">
+          <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2.a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z" />
+          <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z" />
+        </svg>
+        <span>KELUAR</span>
       </a>
-      <div class="header-clock">
+
+      <div class="header-clock" style="margin-left: auto;">
         <p id="clock">00:00:00</p>
         <p id="date">Rabu, 15 Oktober 2025</p>
       </div>
+
     </div>
   </header>
 

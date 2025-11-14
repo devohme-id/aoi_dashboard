@@ -9,9 +9,10 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
   exit;
 }
 
-$current_user_id = $_SESSION['user_id'];
-$current_user_name = $_SESSION['username'];
-$current_full_name = $_SESSION['full_name'];
+$userId = htmlspecialchars($_SESSION['user_id']);
+$username = htmlspecialchars($_SESSION['username']);
+$fullName = htmlspecialchars($_SESSION['full_name']);
+
 $current_page = 'tuning.php';
 require_once 'api/db_config.php';
 $lines = $conn->query("SELECT LineID, LineName FROM ProductionLines ORDER BY LineID");
@@ -26,47 +27,6 @@ $lines = $conn->query("SELECT LineID, LineName FROM ProductionLines ORDER BY Lin
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/report.css">
   <link rel="stylesheet" href="css/tuning.css">
-
-  <style>
-    /* --- Style untuk Info User di Header --- */
-
-    .header-clock-area {
-      /* Pastikan semua item di dalam header-clock-area sejajar */
-      align-items: center;
-    }
-
-    .header-user-info {
-      display: flex;
-      align-items: center;
-      padding: 0.5rem 1rem;
-      margin: 0 0.5rem;
-      color: var(--text-color);
-      background-color: var(--bg-color);
-      /* Warna sedikit beda dari background */
-      border-radius: var(--border-radius-md);
-      border: 1px solid var(--border-color);
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-
-    .header-user-info .user-icon {
-      margin-right: 0.5rem;
-      font-size: 1.1rem;
-      opacity: 0.8;
-    }
-
-    /* Style untuk Tombol Logout (terpisah) */
-    .btn-report.btn-logout {
-      background: #e11d48;
-      /* Warna merah */
-      color: var(--text-dark);
-    }
-
-    .btn-report.btn-logout:hover {
-      background: #c51a40;
-      /* Warna merah lebih gelap saat hover */
-    }
-  </style>
 </head>
 
 <body>
@@ -76,6 +36,13 @@ $lines = $conn->query("SELECT LineID, LineName FROM ProductionLines ORDER BY Lin
       <p class="header-subtitle">Start a New Program Tuning Cycle</p>
     </div>
     <div class="header-clock-area">
+      <div class="btn-report" style="background: linear-gradient(90deg, var(--blue-color),rgb(15, 87, 243)); color: var(--text-white);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.5rem;">
+          <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+          <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z" />
+        </svg>
+        <span id="userId" data-id="<?php echo $userId ?>"><?php echo $fullName; ?></span>
+      </div>
       <a href="index.php" class="btn-report <?= ($current_page == 'index.php') ? 'active-nav' : '' ?>" style="background: var(--gray-color); color: var(--text-color);">
         <span class="report-icon">🏠</span> DASHBOARD
       </a>
@@ -95,13 +62,12 @@ $lines = $conn->query("SELECT LineID, LineName FROM ProductionLines ORDER BY Lin
         <span>DEBUGGING</span>
       </a>
 
-      <div class="header-user-info">
-        <span class="user-icon">👤</span>
-        <span><?php echo htmlspecialchars($current_full_name); ?></span>
-      </div>
-
-      <a href="logout.php?from=<?php echo urlencode($current_page); ?>" class="btn-report btn-logout">
-          <span class="report-icon">🚪</span> KELUAR
+      <a href="logout.php?from=<?php echo urlencode($current_page); ?>" class="btn-report" style="background: linear-gradient(90deg, var(--red-color),rgb(243, 140, 15)); color: var(--text-dark);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.2rem;">
+          <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2.a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z" />
+          <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z" />
+        </svg>
+        <span>KELUAR</span>
       </a>
 
       <div class="header-clock">
@@ -116,7 +82,7 @@ $lines = $conn->query("SELECT LineID, LineName FROM ProductionLines ORDER BY Lin
       <h2>Start New Cycle</h2>
       <p class="tuning-description">Gunakan form ini setelah Anda menyelesaikan proses tuning/debugging program AOI. Memulai siklus baru akan memisahkan data KPI sebelum dan sesudah tuning untuk analisis yang akurat.</p>
       <form id="tuning_form">
-        <input type="hidden" id="user_id" value="<?= htmlspecialchars($current_user_id) ?>">
+        <input type="hidden" id="user_id" value="<?= htmlspecialchars($userId) ?>">
         <div class="form-row">
           <div class="form-control">
             <label for="line_id">1. Select Production Line</label>
