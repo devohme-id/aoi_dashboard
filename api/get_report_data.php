@@ -59,7 +59,7 @@ function buildWhereClause($conn)
 
 function buildWhereClauseForExport($conn)
 {
-    // ... (Fungsi ini tidak berubah) ...
+    // ... (Fungsi ini tidak berubah, karena JS hanya mengirim filter ini) ...
     $dateFilter = isset($_POST['date_filter']) ? json_decode($_POST['date_filter'], true) : [];
     $lineFilter = isset($_POST['line_filter']) ? $_POST['line_filter'] : '';
     $whereClauses = [];
@@ -108,7 +108,6 @@ function handleDataTable($conn)
     $params = $filter['params'];
     $paramTypes = $filter['types'];
 
-    // --- ▼▼▼ JOIN ke Users TETAP DIPERLUKAN ▼▼▼ ---
     $fromClause = "
         FROM Inspections i
         JOIN ProductionLines pl ON i.LineID = pl.LineID
@@ -118,7 +117,6 @@ function handleDataTable($conn)
 
     $groupByClause = "GROUP BY i.LineID, i.Assembly, i.LotCode, i.TuningCycleID";
 
-    // ... (Query 'countQuery' dan 'totalQuery' tidak berubah) ...
     $countQuery = "SELECT COUNT(*) as total FROM (SELECT i.LineID " . $fromClause . " " . $whereSql . " " . $groupByClause . ") as subquery";
     $stmt = $conn->prepare($countQuery);
     bindParams($stmt, $paramTypes, $params);
@@ -129,7 +127,6 @@ function handleDataTable($conn)
     $recordsTotal = $conn->query($totalQuery)->fetch_assoc()['total'];
 
 
-    // --- ▼▼▼ PERUBAHAN DI SINI (GANTI NAMA KOLOM) ▼▼▼ ---
     $dataQuery = "
         SELECT
             MAX(i.EndTime) as EndTime,
@@ -137,7 +134,7 @@ function handleDataTable($conn)
             i.Assembly,
             i.LotCode,
             i.TuningCycleID,
-            MAX(u.FullName) as DebuggerFullName, -- <== NAMA DIGANTI
+            MAX(u.FullName) as DebuggerFullName,
             MAX(tc.Notes) as Notes,
             COUNT(i.InspectionID) AS Inspected,
             SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) AS Pass,
@@ -146,7 +143,6 @@ function handleDataTable($conn)
             (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS PassRate,
             (SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 1000000 AS PPM
         " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY EndTime DESC, i.Assembly ASC, i.LotCode ASC, i.TuningCycleID ASC LIMIT ?, ?";
-    // --- ▲▲▲ SELESAI ▲▲▲ ---
 
     $stmt = $conn->prepare($dataQuery);
     $limitParams = [$start, $length > 0 ? $length : 1000000];
@@ -155,10 +151,12 @@ function handleDataTable($conn)
     $result = $stmt->get_result();
     $data = [];
     while ($row = $result->fetch_assoc()) {
-        $row['PassRate'] = number_format($row['PassRate']);
+        // --- ▼▼▼ REVISI FORMAT ANGKA (Standardisasi 2 desimal) ▼▼▼ ---
+        $row['PassRate'] = number_format($row['PassRate'], 2);
+        // --- ▲▲▲ SELESAI ▲▲▲ ---
         $row['PPM'] = (int)$row['PPM'];
         $row['Notes'] = $row['Notes'] ?? 'Initial Program';
-        $row['DebuggerFullName'] = $row['DebuggerFullName'] ?? 'N/A'; // <== NAMA DIGANTI
+        $row['DebuggerFullName'] = $row['DebuggerFullName'] ?? 'N/A';
         $data[] = $row;
     }
     $stmt->close();
@@ -173,7 +171,6 @@ function handleExport($conn)
     $params = $filter['params'];
     $paramTypes = $filter['types'];
 
-    // --- ▼▼▼ JOIN ke Users TETAP DIPERLUKAN ▼▼▼ ---
     $fromClause = "
         FROM Inspections i
         JOIN ProductionLines pl ON i.LineID = pl.LineID
@@ -183,23 +180,23 @@ function handleExport($conn)
 
     $groupByClause = "GROUP BY i.LineID, i.Assembly, i.LotCode, i.TuningCycleID";
 
-    // --- ▼▼▼ PERUBAHAN DI SINI (GANTI NAMA KOLOM) ▼▼▼ ---
+    // --- ▼▼▼ REVISI QUERY EXPORT (Dibuat identik dengan DataTable) ▼▼▼ ---
     $dataQuery = "
         SELECT
-            MAX(i.EndTime) as Timestamp,
+            MAX(i.EndTime) as EndTime,
             pl.LineName,
             i.Assembly,
             i.LotCode,
-            i.TuningCycleID AS 'Tuning Cycle',
-            MAX(u.FullName) AS 'Debugger (Full Name)', -- <== NAMA DIGANTI
-            MAX(tc.Notes) AS 'Notes',
+            i.TuningCycleID,
+            MAX(u.FullName) as DebuggerFullName,
+            MAX(tc.Notes) as Notes,
             COUNT(i.InspectionID) AS Inspected,
             SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) AS Pass,
             SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) AS Defect,
-            SUM(CASE WHEN i.FinalResult IN ('False Fail', 'Unreviewed') THEN 1 ELSE 0 END) AS 'False Call',
-            (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS 'Pass Rate (%)',
+            SUM(CASE WHEN i.FinalResult IN ('False Fail', 'Unreviewed') THEN 1 ELSE 0 END) AS FalseCall,
+            (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS PassRate,
             (SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 1000000 AS PPM
-        " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY i.Assembly ASC, i.LotCode ASC, i.TuningCycleID ASC";
+        " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY EndTime DESC, i.Assembly ASC, i.LotCode ASC, i.TuningCycleID ASC";
     // --- ▲▲▲ SELESAI ▲▲▲ ---
 
     $stmt = $conn->prepare($dataQuery);
@@ -207,13 +204,18 @@ function handleExport($conn)
     $stmt->execute();
     $result = $stmt->get_result();
     $data = [];
+
+    // --- ▼▼▼ REVISI LOOP EXPORT (Dibuat identik dengan DataTable) ▼▼▼ ---
     while ($row = $result->fetch_assoc()) {
-        $row['Pass Rate (%)'] = number_format($row['Pass Rate (%)']);
+        $row['PassRate'] = number_format($row['PassRate'], 2);
         $row['PPM'] = (int)$row['PPM'];
         $row['Notes'] = $row['Notes'] ?? 'Initial Program';
-        $row['Debugger (Full Name)'] = $row['Debugger (Full Name)'] ?? 'N/A'; // <== NAMA DIGANTI
+        $row['DebuggerFullName'] = $row['DebuggerFullName'] ?? 'N/A';
         $data[] = $row;
     }
+    // --- ▲▲▲ SELESAI ▲▲▲ ---
+
     $stmt->close();
     echo json_encode($data);
 }
+?>

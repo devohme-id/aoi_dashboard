@@ -27,30 +27,26 @@ $(document).ready(function() {
               alert("Failed to load data from server. Check console for details.");
           }
       },
-      // --- ▼▼▼ PERUBAHAN DI SINI (GANTI NAMA KOLOM) ▼▼▼ ---
       "columns": [
           { "data": "EndTime", "title": "Timestamp" },
           { "data": "LineName", "title": "Line" },
           { "data": "Assembly", "title": "Assembly" },
           { "data": "LotCode", "title": "Lot Code" },
           { "data": "TuningCycleID", "title": "Cycle" },
+          { "data": "DebuggerFullName", "title": "Debugger" },
           { "data": "Inspected", "title": "Inspected" },
           { "data": "Pass", "title": "Pass" },
           { "data": "Defect", "title": "Defect" },
           { "data": "FalseCall", "title": "False Call" },
           { "data": "PassRate", "title": "Pass Rate (%)" },
           { "data": "PPM", "title": "PPM" },
-          { "data": "DebuggerFullName", "title": "Debugger" }, // <-- NAMA DIGANTI
           { "data": "Notes", "title": "Notes / Change Log" }
       ],
-      // --- ▼▼▼ PERUBAHAN DI SINI (ATUR LEBAR KOLOM BARU) ▼▼▼ ---
       "columnDefs": [
           { "width": "140px", "targets": 0 }, // Timestamp
-          // Definisi UserID dihapus
-          { "width": "120px", "targets": 5 }, // Debugger (Full Name) <-- target 5
-          { "width": "250px", "targets": 12 } // Notes column (bergeser dari 13 ke 12)
+          { "width": "120px", "targets": 5 }, // Debugger (Full Name)
+          { "width": "250px", "targets": 12 } // Notes column
       ],
-      // --- ▲▲▲ SELESAI ▲▲▲ ---
       "responsive": true,
       "pageLength": 10,
       "lengthMenu": [ [10, 25, 50, -1], [10, 25, 50, "All"] ],
@@ -74,7 +70,7 @@ $(document).ready(function() {
       table.ajax.reload(); // Memuat ulang data tabel dengan filter baru
   });
 
-  // ... (Fungsi 'export_excel' dan 'updateClock' tidak berubah) ...
+  // Tombol "Export to Excel"
   $('#export_excel').on('click', function() {
       const params = new URLSearchParams();
       const date_filter = dateRangePicker.selectedDates.map(date => date.toISOString().slice(0, 10));
@@ -85,6 +81,7 @@ $(document).ready(function() {
       }
       params.append('line_filter', $('#line_filter').val());
 
+      // Tampilkan loading state
       const btn = $(this);
       btn.prop('disabled', true).find('span').text('Exporting...');
 
@@ -108,12 +105,16 @@ $(document).ready(function() {
           const worksheet = XLSX.utils.json_to_sheet(data);
           const workbook = XLSX.utils.book_new();
           const now = new Date();
+
+          // --- ▼▼▼ REVISI KESALAHAN (PENAMBAHAN TANDA '+') ▼▼▼ ---
           const timestamp = now.getFullYear() +
-              ("0" (now.getMonth() + 1)).slice(-2) +
+              ("0" + (now.getMonth() + 1)).slice(-2) + // <-- TANDA '+' HILANG DI SINI
               ("0" + now.getDate()).slice(-2) + "_" +
               ("0" + now.getHours()).slice(-2) +
               ("0" + now.getMinutes()).slice(-2) +
               ("0" + now.getSeconds()).slice(-2);
+          // --- ▲▲▲ SELESAI ▲▲▲ ---
+
           const filename = `AOI_KPI_Report_${timestamp}.xlsx`;
           XLSX.utils.book_append_sheet(workbook, worksheet, "KPI Report");
           XLSX.writeFile(workbook, filename);
@@ -123,10 +124,12 @@ $(document).ready(function() {
           alert('Failed to export data. Please check the console for details.');
       })
       .finally(() => {
+          // Kembalikan tombol ke state normal
           btn.prop('disabled', false).find('span').text('Export to Excel');
       });
   });
 
+  // Update Jam
   function updateClock() {
       const now = new Date();
       $('#clock').text(now.toLocaleTimeString('id-ID', { hour12: false }));
