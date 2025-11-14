@@ -129,8 +129,8 @@ function handleFeedbackSubmission($conn)
         // PENTING: Sesuaikan query ini dengan struktur tabel 'Users' Anda.
         // Kolom UserID harus AUTO_INCREMENT.
         $stmt_create = $conn->prepare(
-            "INSERT INTO Users (Username, FullName, Password, Role)
-             VALUES (?, ?, 'password_default_sync', 'Analyst')"
+            "INSERT INTO Users (Username, FullName, Role)
+             VALUES (?, ?, 'Analyst')"
         );
         if (!$stmt_create) throw new Exception("Prepare failed [create]: " . $conn->error);
 
