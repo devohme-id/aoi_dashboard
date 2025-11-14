@@ -25,7 +25,7 @@ try {
 
 function buildWhereClause($conn)
 {
-    // Logika ini tetap sama, hanya sumber datanya yang berbeda tergantung POST atau GET
+    // ... (Fungsi buildWhereClause Anda TIDAK BERUBAH) ...
     $dateFilter = isset($_POST['date_filter']) ? $_POST['date_filter'] : [];
     $lineFilter = isset($_POST['line_filter']) ? $_POST['line_filter'] : '';
     $searchValue = isset($_POST['search']['value']) ? $_POST['search']['value'] : '';
@@ -63,6 +63,7 @@ function buildWhereClause($conn)
 
 function buildWhereClauseForExport($conn)
 {
+    // ... (Fungsi buildWhereClauseForExport Anda TIDAK BERUBAH) ...
     $dateFilter = isset($_POST['date_filter']) ? json_decode($_POST['date_filter'], true) : [];
     $lineFilter = isset($_POST['line_filter']) ? $_POST['line_filter'] : '';
 
@@ -93,6 +94,7 @@ function buildWhereClauseForExport($conn)
 
 function bindParams($stmt, $types, $params)
 {
+    // ... (Fungsi bindParams Anda TIDAK BERUBAH) ...
     if (empty($types) || empty($params)) {
         return;
     }
@@ -114,11 +116,15 @@ function handleDataTable($conn)
     $params = $filter['params'];
     $paramTypes = $filter['types'];
 
+    // --- ▼▼▼ PERUBAHAN DI SINI (TAMBAHKAN JOIN KE USERS) ▼▼▼ ---
     $fromClause = "
-        FROM Inspections i 
+        FROM Inspections i
         JOIN ProductionLines pl ON i.LineID = pl.LineID
         LEFT JOIN TuningCycles tc ON i.LineID = tc.LineID AND i.Assembly = tc.Assembly AND i.TuningCycleID = tc.CycleVersion
+        LEFT JOIN Users u ON tc.StartedByUserID = u.UserID
     ";
+    // --- ▲▲▲ SELESAI ▲▲▲ ---
+
     $groupByClause = "GROUP BY i.LineID, i.Assembly, i.LotCode, i.TuningCycleID";
 
     // Dapatkan total records (filtered)
@@ -133,16 +139,17 @@ function handleDataTable($conn)
     $totalQuery = "SELECT COUNT(*) as total FROM (SELECT i.LineID FROM Inspections i " . $groupByClause . ") as subquery";
     $recordsTotal = $conn->query($totalQuery)->fetch_assoc()['total'];
 
-    // Query utama untuk data
-    // *** PERUBAHAN: Menggabungkan Unreviewed ke FalseCall dan mengubah ORDER BY ***
+    // --- ▼▼▼ PERUBAHAN DI SINI (TAMBAHKAN AnalystName) ▼▼▼ ---
     $dataQuery = "
-        SELECT 
+        SELECT
             MAX(i.EndTime) as EndTime,
             pl.LineName,
             i.Assembly,
             i.LotCode,
             i.TuningCycleID,
             MAX(tc.Notes) as Notes,
+            MAX(u.FullName) as AnalystName, -- <== BARIS INI DITAMBAHKAN
+            MAX(tc.StartedByUserID) AS 'Started By User ID',
             COUNT(i.InspectionID) AS Inspected,
             SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) AS Pass,
             SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) AS Defect,
@@ -150,6 +157,7 @@ function handleDataTable($conn)
             (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS PassRate,
             (SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 1000000 AS PPM
         " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY EndTime DESC, i.Assembly ASC, i.LotCode ASC, i.TuningCycleID ASC LIMIT ?, ?";
+    // --- ▲▲▲ SELESAI ▲▲▲ ---
 
     $stmt = $conn->prepare($dataQuery);
     $limitParams = [$start, $length > 0 ? $length : 1000000];
@@ -158,11 +166,13 @@ function handleDataTable($conn)
     $result = $stmt->get_result();
     $data = [];
     while ($row = $result->fetch_assoc()) {
-        $row['PassRate'] = number_format($row['PassRate'], 2);
-        $row['PPM'] = (int)$row['PPM'];
-        $row['Notes'] = $row['Notes'] ?? 'Initial Program';
-        $data[] = $row;
-    }
+      $row['PassRate'] = number_format($row['PassRate'], 2);
+      $row['PPM'] = (int)$row['PPM'];
+      $row['Notes'] = $row['Notes'] ?? 'Initial Program';
+      $row['AnalystName'] = $row['AnalystName'] ?? 'N/A';
+      $row['StartedByUserID'] = $row['StartedByUserID'] ?? 'N/A'; // <== TAMBAHKAN INI
+      $data[] = $row;
+  }
     $stmt->close();
 
     echo json_encode(["draw" => $draw, "recordsTotal" => $recordsTotal, "recordsFiltered" => $recordsFiltered, "data" => $data]);
@@ -175,22 +185,27 @@ function handleExport($conn)
     $params = $filter['params'];
     $paramTypes = $filter['types'];
 
-    // *** PERUBAHAN: Menggabungkan Unreviewed ke FalseCall dan mengubah ORDER BY ***
+    // --- ▼▼▼ PERUBAHAN DI SINI (TAMBAHKAN JOIN KE USERS) ▼▼▼ ---
     $fromClause = "
-        FROM Inspections i 
+        FROM Inspections i
         JOIN ProductionLines pl ON i.LineID = pl.LineID
         LEFT JOIN TuningCycles tc ON i.LineID = tc.LineID AND i.Assembly = tc.Assembly AND i.TuningCycleID = tc.CycleVersion
+        LEFT JOIN Users u ON tc.StartedByUserID = u.UserID
     ";
+    // --- ▲▲▲ SELESAI ▲▲▲ ---
+
     $groupByClause = "GROUP BY i.LineID, i.Assembly, i.LotCode, i.TuningCycleID";
 
+    // --- ▼▼▼ PERUBAHAN DI SINI (TAMBAHKAN Debugger) ▼▼▼ ---
     $dataQuery = "
-        SELECT 
+        SELECT
             MAX(i.EndTime) as Timestamp,
             pl.LineName,
             i.Assembly,
             i.LotCode,
             i.TuningCycleID AS 'Tuning Cycle',
             MAX(tc.Notes) AS 'Notes',
+            MAX(u.FullName) AS 'Debugger', -- <== BARIS INI DITAMBAHKAN
             COUNT(i.InspectionID) AS Inspected,
             SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) AS Pass,
             SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) AS Defect,
@@ -198,6 +213,7 @@ function handleExport($conn)
             (SUM(CASE WHEN i.FinalResult = 'Pass' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 100 AS 'Pass Rate (%)',
             (SUM(CASE WHEN i.FinalResult = 'Defective' THEN 1 ELSE 0 END) / COUNT(i.InspectionID)) * 1000000 AS PPM
         " . $fromClause . " " . $whereSql . " " . $groupByClause . " ORDER BY i.Assembly ASC, i.LotCode ASC, i.TuningCycleID ASC";
+    // --- ▲▲▲ SELESAI ▲▲▲ ---
 
     $stmt = $conn->prepare($dataQuery);
     bindParams($stmt, $paramTypes, $params);
@@ -205,11 +221,13 @@ function handleExport($conn)
     $result = $stmt->get_result();
     $data = [];
     while ($row = $result->fetch_assoc()) {
-        $row['Pass Rate (%)'] = number_format($row['Pass Rate (%)'], 2);
-        $row['PPM'] = (int)$row['PPM'];
-        $row['Notes'] = $row['Notes'] ?? 'Initial Program';
-        $data[] = $row;
-    }
+      $row['Pass Rate (%)'] = number_format($row['Pass Rate (%)'], 2);
+      $row['PPM'] = (int)$row['PPM'];
+      $row['Notes'] = $row['Notes'] ?? 'Initial Program';
+      $row['Debugger'] = $row['Debugger'] ?? 'N/A';
+      $row['Started By User ID'] = $row['Started By User ID'] ?? 'N/A'; // <== TAMBAHKAN INI
+      $data[] = $row;
+  }
     $stmt->close();
     echo json_encode($data);
 }
