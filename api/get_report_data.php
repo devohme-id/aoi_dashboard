@@ -155,7 +155,7 @@ function handleDataTable($conn)
     $result = $stmt->get_result();
     $data = [];
     while ($row = $result->fetch_assoc()) {
-        $row['PassRate'] = number_format($row['PassRate'], 2);
+        $row['PassRate'] = number_format($row['PassRate']);
         $row['PPM'] = (int)$row['PPM'];
         $row['Notes'] = $row['Notes'] ?? 'Initial Program';
         $row['DebuggerFullName'] = $row['DebuggerFullName'] ?? 'N/A'; // <== NAMA DIGANTI
@@ -208,7 +208,7 @@ function handleExport($conn)
     $result = $stmt->get_result();
     $data = [];
     while ($row = $result->fetch_assoc()) {
-        $row['Pass Rate (%)'] = number_format($row['Pass Rate (%)'], 2);
+        $row['Pass Rate (%)'] = number_format($row['Pass Rate (%)']);
         $row['PPM'] = (int)$row['PPM'];
         $row['Notes'] = $row['Notes'] ?? 'Initial Program';
         $row['Debugger (Full Name)'] = $row['Debugger (Full Name)'] ?? 'N/A'; // <== NAMA DIGANTI
