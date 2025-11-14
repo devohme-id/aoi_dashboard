@@ -39,27 +39,13 @@ if (isset($_GET['redirect'])) {
     html {
       height: 100%;
       margin: 0;
-      font-family: var(--font-main);
+      /* ▼▼▼ REVISI FONT ▼▼▼ */
+      font-family: 'MyFontText', sans-serif;
+      /* Menggunakan font dari style.css */
+      /* ▲▲▲ SELESAI ▲▲▲ */
       display: flex;
       align-items: center;
       justify-content: center;
-      /* Latar belakang dengan gradient halus */
-      background: var(--bg-color);
-      background: linear-gradient(135deg, var(--bg-color) 0%, #303444 100%);
-    }
-
-    @font-face {
-      font-family: 'MyFontText';
-      src: url('../assets/fonts/LGEITextTTF-Regular.ttf') format('truetype');
-      font-weight: normal;
-      font-style: normal;
-    }
-
-    @font-face {
-      font-family: 'MyFontHeadline';
-      src: url('../assets/fonts/LGEIHeadlineTTF-Regular.ttf') format('truetype');
-      font-weight: normal;
-      font-style: normal;
     }
 
     /* --- Wrapper Utama (Kartu Login) --- */
@@ -67,15 +53,12 @@ if (isset($_GET['redirect'])) {
       display: flex;
       width: 100%;
       max-width: 900px;
-      /* Lebar total kartu */
       min-height: 550px;
       background: var(--bg-light);
       border-radius: var(--border-radius-lg);
       box-shadow: var(--shadow-lg);
       overflow: hidden;
-      /* Penting agar border-radius berfungsi di dalam flex */
       animation: fadeIn 0.5s ease-out;
-      /* Animasi muncul */
     }
 
     /* --- Panel Kiri (Splash/Branding) --- */
@@ -87,7 +70,6 @@ if (isset($_GET['redirect'])) {
       align-items: center;
       justify-content: center;
       text-align: center;
-      /* Gradient dari variabel warna Anda */
       background: linear-gradient(45deg, var(--blue-color), #818cf8);
       color: white;
     }
@@ -99,6 +81,10 @@ if (isset($_GET['redirect'])) {
     }
 
     .login-splash h2 {
+      /* ▼▼▼ REVISI FONT ▼▼▼ */
+      font-family: 'MyFontHeadline', sans-serif;
+      /* Menggunakan font dari style.css */
+      /* ▲▲▲ SELESAI ▲▲▲ */
       font-size: 2rem;
       margin: 0 0 0.5rem 0;
     }
@@ -116,10 +102,17 @@ if (isset($_GET['redirect'])) {
       flex-direction: column;
       justify-content: center;
       box-sizing: border-box;
-      /* Pastikan padding tidak merusak layout */
+      /* ▼▼▼ TAMBAHAN BORDER ▼▼▼ */
+      border-left: 1px solid var(--border-color);
+      /* Menambah garis pemisah */
+      /* ▲▲▲ SELESAI ▲▲▲ */
     }
 
     .login-form-container h1 {
+      /* ▼▼▼ REVISI FONT ▼▼▼ */
+      font-family: 'MyFontHeadline', sans-serif;
+      /* Menggunakan font dari style.css */
+      /* ▲▲▲ SELESAI ▲▲▲ */
       color: var(--text-color);
       text-align: left;
       margin-bottom: 0.5rem;
@@ -135,8 +128,7 @@ if (isset($_GET['redirect'])) {
 
     /* --- Form Group (dengan Ikon) --- */
     .form-group {
-      position: relative;
-      /* Penting untuk ikon */
+      /* Position relative dihapus dari sini */
       margin-bottom: 1.5rem;
     }
 
@@ -147,14 +139,29 @@ if (isset($_GET['redirect'])) {
       font-weight: 600;
     }
 
+    /* ▼▼▼ REVISI POSISI IKON (CSS) ▼▼▼ */
+    .form-group .input-wrapper {
+      position: relative;
+      /* Wrapper baru untuk input dan ikon */
+    }
+
     .form-group .input-icon {
       position: absolute;
       left: 12px;
-      /* Sesuaikan 'top' agar pas dengan input */
-      top: 41px;
+      top: 50%;
+      /* 1. Atur ke 50% dari tinggi wrapper */
+      transform: translateY(-50%);
+      /* 2. Tarik ke atas 50% dari tinggi ikon itu sendiri */
       color: var(--text-muted);
-      font-size: 1.1rem;
+      pointer-events: none;
+      /* 3. Agar ikon bisa diklik tembus ke input */
+      display: flex;
+      /* 4. Untuk memusatkan SVG di dalam span */
+      align-items: center;
+      justify-content: center;
     }
+
+    /* ▲▲▲ SELESAI ▲▲▲ */
 
     .form-group input {
       width: 100%;
@@ -171,7 +178,6 @@ if (isset($_GET['redirect'])) {
     .form-group input:focus {
       outline: none;
       border-color: var(--blue-color);
-      /* Efek 'glow' saat di-klik */
       box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
     }
 
@@ -192,7 +198,6 @@ if (isset($_GET['redirect'])) {
     .btn-login:hover {
       opacity: 0.9;
       transform: scale(1.02);
-      /* Efek 'pop' saat hover */
     }
 
     .link-navigasi {
@@ -256,6 +261,8 @@ if (isset($_GET['redirect'])) {
       .login-form-container {
         width: 100%;
         padding: 2rem 1.5rem;
+        /* Hapus border di mobile agar tidak aneh */
+        border-left: none;
       }
 
       .login-form-container h1 {
@@ -270,10 +277,9 @@ if (isset($_GET['redirect'])) {
   <div class="login-page-wrapper">
 
     <div class="login-splash">
-      <svg class="login-splash-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M6 12.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5ZM3 8.062C3 6.76 4.235 5.765 5.53 5.886a26.58 26.58 0 0 0 4.94 0C11.765 5.765 13 6.76 13 8.062v1.157a.933.933 0 0 1-.765.935c-.845.147-2.34.346-4.235.346-1.895 0-3.39-.2-4.235-.346A.933.933 0 0 1 3 9.219V8.062Zm4.542-.827a.25.25 0 0 0-.217.068l-.92.9a24.767 24.767 0 0 1-1.871-.183.25.25 0 0 0-.068.495c.5.073 1.03.16 1.557.233l-.626.62a.25.25 0 0 0 .177.424l.982-.001-.018.916a.25.25 0 0 0 .449.103l.217-.381.217.381a.25.25 0 0 0 .449-.103l-.018-.916.982.001a.25.25 0 0 0 .177-.424l-.626-.62c.527-.073 1.057-.16 1.557-.233a.25.25 0 0 0-.068-.495 24.792 24.792 0 0 1-1.871.183l-.92-.9a.25.25 0 0 0-.217-.068Z" />
-        <path d="M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1Zm-1.5 6.062V8.062a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v.002Z" />
-        <path d="M1 1.5A1.5 1.5 0 0 1 2.5 0h11A1.5 1.5 0 0 1 15 1.5v13a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 1 14.5v-13ZM2.5 1a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5v-13a.5.5 0 0 0-.5-.5h-11Z" />
+      <svg class="login-splash-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-camera2" viewBox="0 0 16 16">
+        <path d="M5 8c0-1.657 2.343-3 4-3V4a4 4 0 0 0-4 4" />
+        <path d="M12.318 3h2.015C15.253 3 16 3.746 16 4.667v6.666c0 .92-.746 1.667-1.667 1.667h-2.015A5.97 5.97 0 0 1 9 14a5.97 5.97 0 0 1-3.318-1H1.667C.747 13 0 12.254 0 11.333V4.667C0 3.747.746 3 1.667 3H2a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1h.682A5.97 5.97 0 0 1 9 2c1.227 0 2.367.368 3.318 1M2 4.5a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0M14 8A5 5 0 1 0 4 8a5 5 0 0 0 10 0" />
       </svg>
       <h2>Smart AOI</h2>
       <p>Monitoring & Feedback System</p>
@@ -292,15 +298,28 @@ if (isset($_GET['redirect'])) {
       <form action="api/auth.php" method="POST">
 
         <input type="hidden" name="redirect_url" value="<?php echo htmlspecialchars($redirect_to); ?>">
+
         <div class="form-group">
           <label for="username">Username</label>
-          <span class="input-icon">👤</span>
-          <input type="text" id="username" name="username" placeholder="Masukkan username Anda" required>
+          <div class="input-wrapper"> <span class="input-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-person-circle" viewBox="0 0 16 16">
+                <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
+                <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1" />
+              </svg>
+            </span>
+            <input type="text" id="username" name="username" placeholder="Masukkan username Anda" required>
+          </div>
         </div>
+
         <div class="form-group">
           <label for="password">Password</label>
-          <span class="input-icon">🔒</span>
-          <input type="password" id="password" name="password" placeholder="Masukkan password Anda" required>
+          <div class="input-wrapper"> <span class="input-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-key-fill" viewBox="0 0 16 16">
+                <path d="M3.5 11.5a3.5 3.5 0 1 1 3.163-5H14L15.5 8 14 9.5l-1-1-1 1-1-1-1 1-1-1-1 1H6.663a3.5 3.5 0 0 1-3.163 2M2.5 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2" />
+              </svg>
+            </span>
+            <input type="password" id="password" name="password" placeholder="Masukkan password Anda" required>
+          </div>
         </div>
         <button type="submit" class="btn-login">Masuk</button>
       </form>
