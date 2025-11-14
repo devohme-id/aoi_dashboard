@@ -1,7 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
   // === Konfigurasi & Variabel Global ===
   const API_URL = "api/feedback_handler.php";
-  const CURRENT_ANALYST_ID = 8;
+  let ANALYST_ID = document.getElementById("userId");
+  let CURRENT_ANALYST_ID = parseInt(ANALYST_ID.getAttribute('data-id'));
+  console.log(typeof CURRENT_ANALYST_ID);
+
   let verificationData = [];
   let allLinesData = [];
   let selectedDefectId = null;
@@ -11,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const loadingIndicator = document.getElementById("loading-indicator");
   const detailPlaceholder = document.getElementById("detail-view-placeholder");
   const detailContent = document.getElementById("detail-view-content");
-  
+
   // *** PERUBAHAN: Tambahkan selector untuk filter baru ***
   const lineFilter = document.getElementById("line-filter");
   const defectFilter = document.getElementById("defect-filter");
@@ -41,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
       allLinesData = data.all_lines;
 
       populateFilters();
-      applyInitialUrlFilter(); 
+      applyInitialUrlFilter();
       applyFilters();
 
     } catch (error) {
@@ -223,6 +226,9 @@ document.addEventListener("DOMContentLoaded", () => {
       notes: null,
     };
 
+    console.log(payload);
+
+
     try {
       const response = await fetch(API_URL, {
         method: "POST",
@@ -231,6 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const result = await response.json();
       if (!result.success)
+
         throw new Error(result.error || "Unknown submission error");
 
       showVerifiedState(payload.decision);
@@ -280,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const lineMatch = !selectedLine || item.LineName === selectedLine;
       const defectMatch = !selectedDefect || item.MachineDefectCode === selectedDefect;
       const assemblyMatch = !assemblyQuery || (item.Assembly && item.Assembly.toLowerCase().includes(assemblyQuery));
-      
+
       let dateMatch = true;
       if (selectedDates.length === 2) {
           const itemDate = new Date(item.EndTime);
@@ -290,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
           startDate.setHours(0,0,0,0);
           const endDate = selectedDates[1];
           endDate.setHours(0,0,0,0);
-          
+
           dateMatch = itemDate >= startDate && itemDate <= endDate;
       }
 

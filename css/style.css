@@ -436,3 +436,9 @@ body {
     /* Setiap chart akan mengambil ruang yang sama */
     min-width: 0;
 }
+
+/* Penyesuaian agar Jam tetap di kanan sebelum logout */
+.header-clock {
+  margin-left: auto; /* INI PENTING: Dorong jam ke kanan */
+  margin-right: 0;
+}
