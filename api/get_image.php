@@ -5,7 +5,7 @@
 
 // Mapping path Windows
 $path_mapping = [
-    1 => '\\\\192.168.0.19\\qx600\\QX600\\Images\\ExportedImages',
+    1 => '\\\\192.168.0.19\\QX600\\Images\\ExportedImages',
     2 => '\\\\192.168.0.21\\qx600\\Images\\ExportedImages\\ExportedImages',
     3 => '\\\\192.168.0.29\\qx600\\Images\\ExportedImages',
     4 => '\\\\192.168.0.25\\qx600\\Images\\ExportedImages',
