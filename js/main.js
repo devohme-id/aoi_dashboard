@@ -1,6 +1,6 @@
 /**
- * main.js - Dashboard Core Logic
- * Handles real-time data fetching, chart updates, and sound alerts.
+ * main.js - Dashboard Logic (Compact Layout & Smart Design)
+ * Revised: Responsive Height Fix (min-h-0) to ensure 2 rows fit in viewport
  */
 
 const CONFIG = {
@@ -20,12 +20,12 @@ const state = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Setup Chart.js
+    // 1. Chart.js Setup
     if (typeof Chart !== 'undefined' && ChartDataLabels) {
         Chart.register(ChartDataLabels);
     }
 
-    // 2. Setup Audio
+    // 2. Audio Setup
     state.alertAudio = document.getElementById('alert-sound');
     const soundToggleBtn = document.getElementById('sound-toggle-btn');
 
@@ -36,12 +36,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (soundToggleBtn) {
-        soundToggleBtn.addEventListener('click', () => {
-            toggleSound(soundToggleBtn);
-        });
+        soundToggleBtn.addEventListener('click', () => toggleSound(soundToggleBtn));
     }
 
-    // 3. Setup Panel Grid Layout (Initial Render)
+    // 3. Render Panel Grid
     const panelArea = document.getElementById('panel-area');
     if (panelArea) {
         let content = '';
@@ -50,11 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         panelArea.innerHTML = content;
 
-        // Event Delegation untuk klik panel -> navigasi ke feedback
+        // Navigasi saat klik gambar
         panelArea.addEventListener('click', (event) => {
             const container = event.target.closest('.image-container');
             if (container && container.dataset.line) {
-                // Redirect ke feedback.php dengan parameter line
                 window.location.href = `feedback.php?line=${container.dataset.line}`;
             }
         });
@@ -63,7 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. Start Loops
     fetchData();
     setInterval(fetchData, CONFIG.REFRESH_INTERVAL);
-    
     updateClock();
     setInterval(updateClock, 1000);
 });
@@ -73,42 +69,44 @@ async function fetchData() {
     try {
         const response = await fetch(`${CONFIG.API_URL}?t=${Date.now()}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
         const data = await response.json();
         if (data.error) throw new Error(data.error);
-
         updateDashboardUI(data.lines || {});
     } catch (error) {
         console.warn('Dashboard Data Error:', error);
-        // Jangan redirect di sini karena Dashboard bersifat publik
     }
 }
 
 function updateDashboardUI(linesData) {
     let isAnyCriticalAlertActive = false;
-
     for (let i = 1; i <= 6; i++) {
         const lineKey = `line_${i}`;
         const lineData = linesData[lineKey] || createDefaultLineData();
-        
         updateSinglePanel(i, lineData);
-        
-        if (lineData.is_critical_alert) {
-            isAnyCriticalAlertActive = true;
-        }
+        if (lineData.is_critical_alert) isAnyCriticalAlertActive = true;
     }
-
     manageAlertSound(isAnyCriticalAlertActive);
 }
 
 function updateSinglePanel(lineNumber, data) {
-    const statusNormalized = normalizeStatus(data.is_critical_alert ? 'Defective' : data.status);
+    const isCritical = data.is_critical_alert;
+    const isActive = data.status !== 'INACTIVE';
     
-    // Status Header
+    // Status Header Styling
     const statusEl = document.getElementById(`panel_status_${lineNumber}`);
     if (statusEl) {
         statusEl.textContent = data.status;
-        statusEl.className = `panel-status status-${statusNormalized}`;
+        statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider border shadow-sm transition-all duration-300';
+        
+        if (isCritical) {
+            statusEl.classList.add('bg-red-500/20', 'text-red-400', 'border-red-500/50', 'animate-pulse');
+        } else if (data.status === 'Pass') {
+            statusEl.classList.add('bg-green-500/20', 'text-green-400', 'border-green-500/50');
+        } else if (isActive) {
+            statusEl.classList.add('bg-blue-500/20', 'text-blue-400', 'border-blue-500/50');
+        } else {
+            statusEl.classList.add('bg-slate-800', 'text-slate-500', 'border-slate-700');
+        }
     }
 
     // Text Details
@@ -120,46 +118,63 @@ function updateSinglePanel(lineNumber, data) {
     setText(`detail_inspect_${lineNumber}`, data.details.inspection_result);
     setText(`detail_review_${lineNumber}`, data.details.review_result);
 
-    // Image / Placeholder
+    // Image / Visual State
     const imgContainer = document.getElementById(`image_container_${lineNumber}`);
     if (imgContainer) {
-        imgContainer.className = `image-container status-${statusNormalized}`;
-        imgContainer.classList.toggle('critical-alert', data.is_critical_alert);
+        // Reset base classes - min-h-0 allows shrinking
+        imgContainer.className = 'image-container relative flex-grow bg-slate-950 rounded-lg border flex items-center justify-center overflow-hidden cursor-pointer group hover:border-blue-500/50 transition-all min-h-0';
         
-        if (data.image_url) {
-            imgContainer.innerHTML = `<img src="${data.image_url}" alt="Defect" class="defect-image" loading="lazy">`;
+        if (isCritical) {
+            imgContainer.classList.add('border-red-500', 'shadow-[0_0_15px_rgba(239,68,68,0.3)]');
+        } else if (isActive) {
+            imgContainer.classList.add('border-slate-800');
         } else {
-            const displayText = data.status === 'INACTIVE' ? 'NO SIGNAL' : data.status;
-            imgContainer.innerHTML = `<div class="pcb-visual-placeholder pcb-visual-${statusNormalized}"><span>${displayText}</span></div>`;
+            imgContainer.classList.add('border-slate-800', 'opacity-60');
+        }
+
+        if (data.image_url) {
+            imgContainer.innerHTML = `<img src="${data.image_url}" alt="Defect" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">`;
+        } else {
+            const statusColor = isCritical ? 'text-red-500' : (isActive ? 'text-blue-500' : 'text-slate-700');
+            const displayText = data.status === 'INACTIVE' ? 'NO SIGNAL' : 'NO IMAGE';
+            
+            imgContainer.innerHTML = `<div class="flex flex-col items-center justify-center ${statusColor} transition-colors duration-300">
+                <svg class="w-8 h-8 mb-1 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span class="text-[10px] font-bold tracking-[0.2em]">${displayText}</span>
+            </div>`;
         }
     }
 
-    // KPI Numbers
     updateKPI(lineNumber, data.kpi);
-
-    // Chart
     updateComparisonChart(lineNumber, data.comparison_data);
 }
 
 function updateKPI(line, kpi) {
-    setKPIValue(`kpi_pass_rate_${line}`, `${kpi.pass_rate}%`, kpi.pass_rate >= CONFIG.TARGET_PASS_RATE);
-    setKPIValue(`kpi_ppm_${line}`, kpi.ppm, kpi.ppm <= CONFIG.TARGET_PPM);
-    setKPIValue(`kpi_inspected_${line}`, kpi.total_inspected);
-    setKPIValue(`kpi_pass_${line}`, kpi.total_pass);
-    setKPIValue(`kpi_false_call_${line}`, kpi.total_false_call);
-}
+    const setVal = (id, val, good) => {
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.textContent = val;
+        // Adjusted font size for compact fit
+        el.className = `text-lg font-bold leading-none ${good === true ? 'text-green-400' : (good === false ? 'text-red-400' : 'text-white')}`;
+    };
 
-function setKPIValue(id, value, isGood = null) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = value;
-    if (isGood !== null) {
-        el.classList.toggle('kpi-good', isGood);
-        el.classList.toggle('kpi-bad', !isGood);
+    setVal(`kpi_pass_rate_${line}`, `${kpi.pass_rate}%`, kpi.pass_rate >= CONFIG.TARGET_PASS_RATE);
+    setVal(`kpi_ppm_${line}`, kpi.ppm, kpi.ppm <= CONFIG.TARGET_PPM);
+    setVal(`kpi_inspected_${line}`, kpi.total_inspected, null);
+    
+    const passEl = document.getElementById(`kpi_pass_${line}`);
+    if(passEl) {
+        passEl.textContent = kpi.total_pass;
+        passEl.className = "text-lg font-bold leading-none text-green-500";
+    }
+    
+    const failEl = document.getElementById(`kpi_false_call_${line}`);
+    if(failEl) {
+        failEl.textContent = kpi.total_false_call;
+        failEl.className = "text-lg font-bold leading-none text-yellow-500";
     }
 }
 
-// --- Chart Logic ---
 function updateComparisonChart(lineNumber, data) {
     const chartId = `comparisonChart_${lineNumber}`;
     const canvas = document.getElementById(chartId);
@@ -179,34 +194,132 @@ function updateComparisonChart(lineNumber, data) {
                 datasets: [{
                     label: 'Pass Rate',
                     data: [beforeVal, currentVal],
-                    backgroundColor: ['#475569', '#22d3ee'],
-                    borderColor: ['#475569', '#22d3ee'],
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    barPercentage: 0.6
+                    backgroundColor: ['#475569', '#3b82f6'],
+                    borderRadius: 3,
+                    barPercentage: 0.65
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: false,
-                scales: {
-                    x: { ticks: { color: '#e2e8f0', font: { size: 10 } }, grid: { display: false } },
-                    y: { 
+                layout: {
+                    padding: { top: 15, left: 0, right: 0, bottom: 0 }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: true,
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleFont: { size: 10 },
+                        bodyFont: { size: 10 },
+                        padding: 6,
+                        cornerRadius: 4,
+                        displayColors: false,
+                        callbacks: { label: (ctx) => `${ctx.raw}%` }
+                    },
+                    datalabels: { 
                         display: true, 
-                        beginAtZero: true, 
-                        max: 100, 
-                        ticks: { color: '#94a3b8', stepSize: 25 }, 
-                        grid: { color: '#ffffff20', drawBorder: false }
+                        color: '#fff', 
+                        anchor: 'end', 
+                        align: 'top', 
+                        offset: 2,
+                        font: { size: 10, weight: 'bold' }, 
+                        formatter: v => v + '%' 
                     }
                 },
-                plugins: { legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: true, color: '#fff', anchor: 'end', align: 'top', formatter: v => v + '%' } }
+                scales: {
+                    x: { display: true, ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { display: false } },
+                    y: { display: false, max: 115 }
+                }
             }
         });
     }
 }
 
-// --- Audio & Helpers ---
+// --- HTML Template (Fit to Screen Optimized) ---
+function createPanelHTML(num) {
+    return `
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col gap-2 h-full shadow-lg hover:border-slate-700 transition-colors group min-h-0">
+        <!-- HEADER -->
+        <div class="flex justify-between items-center bg-slate-950/40 p-1.5 rounded-lg border border-slate-800/50 backdrop-blur-sm shrink-0">
+            <h2 class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span> LINE ${num}
+            </h2>
+            <span id="panel_status_${num}" class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-slate-800 text-slate-500 border border-slate-700">INACTIVE</span>
+        </div>
+
+        <!-- MAIN CONTENT (GRID) -->
+        <div class="flex-grow grid grid-cols-5 gap-3 min-h-0">
+            <!-- Left: Detail Text (2 Cols) -->
+            <div class="col-span-2 flex flex-col gap-1 h-full overflow-hidden">
+                
+                <!-- Assembly Info (Highlighted) -->
+                <div class="flex flex-col border-b border-slate-800/80 pb-1 mb-0.5 shrink-0">
+                    <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Assembly</span>
+                    <span id="detail_assembly_${num}" class="font-bold text-white text-xs leading-tight break-words">N/A</span>
+                </div>
+
+                <div class="space-y-1 overflow-y-auto custom-scrollbar pr-1 flex-grow min-h-0">
+                    ${detailRow('Time', `detail_time_${num}`)}
+                    ${detailRow('Ref', `detail_ref_${num}`)}
+                    ${detailRow('Part', `detail_part_${num}`)}
+                    
+                    <!-- Defect Row: Highlighted Block -->
+                    <div class="flex flex-col bg-red-500/5 border-l-2 border-red-500/50 pl-1.5 py-0.5 my-0.5 rounded-r shrink-0">
+                        <span class="text-[10px] text-red-400/70 uppercase tracking-wider font-bold">Defect</span>
+                        <span id="detail_machine_defect_${num}" class="font-bold text-red-400 text-xs leading-tight break-words">N/A</span>
+                    </div>
+                    
+                    ${detailRow('Insp', `detail_inspect_${num}`)}
+                    ${detailRow('Rev', `detail_review_${num}`)}
+                </div>
+            </div>
+
+            <!-- Right: Image (3 Cols) -->
+            <!-- Added min-h-0 to allow shrinking if needed -->
+            <div id="image_container_${num}" class="col-span-3 image-container relative h-full w-full bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center overflow-hidden cursor-pointer min-h-0 shadow-inner" data-line="${num}">
+                <div class="flex flex-col items-center justify-center text-slate-700">
+                    <span class="text-[9px] font-bold tracking-widest">LOADING...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI STATS -->
+        <div class="grid grid-cols-5 gap-1 bg-slate-950/40 p-1.5 rounded-lg border border-slate-800/50 backdrop-blur-sm shrink-0">
+            ${kpiBox(`kpi_pass_rate_${num}`, 'Rate')}
+            ${kpiBox(`kpi_ppm_${num}`, 'PPM')}
+            ${kpiBox(`kpi_inspected_${num}`, 'Insp')}
+            ${kpiBox(`kpi_pass_${num}`, 'Pass', 'text-green-500')}
+            ${kpiBox(`kpi_false_call_${num}`, 'FC', 'text-yellow-500')}
+        </div>
+
+        <!-- CHART (Reduced Height for 2 rows fit) -->
+        <div class="h-16 w-full shrink-0">
+            <canvas id="comparisonChart_${num}"></canvas>
+        </div>
+    </div>`;
+}
+
+function detailRow(label, id, isBold = false, colorClass = 'text-slate-300') {
+    const fontClass = isBold ? 'font-bold text-white' : colorClass;
+    return `
+    <div class="flex justify-between items-start text-xs border-b border-slate-800/50 pb-0.5 last:border-0 shrink-0">
+        <span class="text-slate-500 uppercase tracking-tight text-[9px] w-8 shrink-0 mt-0.5">${label}</span>
+        <span id="${id}" class="${fontClass} text-right ml-1 break-all text-[10px]">N/A</span>
+    </div>`;
+}
+
+function kpiBox(id, label, color = 'text-white') {
+    return `
+    <div class="flex flex-col items-center justify-center p-1 rounded bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
+        <div id="${id}" class="text-sm font-bold leading-none ${color}">0</div>
+        <div class="text-[8px] text-slate-500 uppercase leading-none mt-0.5 font-bold tracking-tight">${label}</div>
+    </div>`;
+}
+
+// --- Helpers ---
 function toggleSound(btn) {
     if (!state.soundUnlocked) {
         state.soundUnlocked = true;
@@ -214,8 +327,6 @@ function toggleSound(btn) {
     }
     state.isMuted = !state.isMuted;
     btn.classList.toggle('muted', state.isMuted);
-    
-    // Re-check status
     const isCritical = document.querySelector('.critical-alert') !== null;
     manageAlertSound(isCritical);
 }
@@ -236,7 +347,7 @@ function manageAlertSound(shouldPlay) {
 function playAlertSound() {
     if (state.isSoundLooping && state.alertAudio) {
         state.alertAudio.play().catch(e => {
-            console.warn("Audio play blocked:", e);
+            console.warn("Audio Blocked", e);
             state.isSoundLooping = false;
         });
     }
@@ -247,51 +358,19 @@ function setText(id, text) {
     if (el) el.textContent = text || 'N/A';
 }
 
-function normalizeStatus(status) {
-    return (status || 'inactive').toLowerCase().replace(/\s+/g, '_');
-}
+function normalizeStatus(status) { return (status || 'inactive').toLowerCase().replace(/\s+/g, '_'); }
 
 function updateClock() {
     const now = new Date();
     setText('clock', now.toLocaleTimeString('id-ID', { hour12: false }));
-    setText('date', now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+    setText('date', now.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase());
 }
 
-// --- HTML Templates ---
-const createDefaultLineData = () => ({
-    status: 'INACTIVE', is_critical_alert: false, image_url: null,
-    details: { time: 'N/A', component_ref: 'N/A', part_number: 'N/A', machine_defect: 'N/A', inspection_result: 'N/A', review_result: 'N/A' },
-    kpi: { assembly: 'N/A', total_inspected: 0, total_pass: 0, total_defect: 0, total_false_call: 0, pass_rate: 0, ppm: 0 },
-    comparison_data: { before: { pass_rate: 0 }, current: { pass_rate: 0 } }
-});
-
-const createPanelHTML = (num) => `
-    <div class="card-ui">
-        <div class="panel-header">
-            <h2 class="panel-title">LINE ${num}</h2>
-            <span id="panel_status_${num}" class="panel-status status-inactive">INACTIVE</span>
-        </div>
-        <div class="panel-content">
-            <div class="panel-details">
-                <div class="detail-item"><span class="detail-label">Assembly</span><strong id="detail_assembly_${num}" class="detail-value">N/A</strong></div>
-                <hr style="border-color: var(--border-color); margin: 0.2rem 0;">
-                <div class="detail-item"><span class="detail-label">Time</span><span id="detail_time_${num}" class="detail-value">N/A</span></div>
-                <div class="detail-item"><span class="detail-label">Ref</span><span id="detail_ref_${num}" class="detail-value">N/A</span></div>
-                <div class="detail-item"><span class="detail-label">Part</span><span id="detail_part_${num}" class="detail-value">N/A</span></div>
-                <div class="detail-item"><span class="detail-label">Defect</span><span id="detail_machine_defect_${num}" class="detail-value">N/A</span></div>
-                <div class="detail-item"><span class="detail-label">Insp</span><span id="detail_inspect_${num}" class="detail-value">N/A</span></div>
-                <div class="detail-item"><span class="detail-label">Rev</span><span id="detail_review_${num}" class="detail-value">N/A</span></div>
-            </div>
-            <div id="image_container_${num}" class="image-container status-inactive" data-line="${num}"></div>
-        </div>
-        <div class="panel-kpi-grid">
-            <div class="kpi-item"><div id="kpi_pass_rate_${num}" class="kpi-value">0%</div><div class="kpi-label">Pass Rate</div></div>
-            <div class="kpi-item"><div id="kpi_ppm_${num}" class="kpi-value">0</div><div class="kpi-label">PPM</div></div>
-            <div class="kpi-item"><div id="kpi_inspected_${num}" class="kpi-value">0</div><div class="kpi-label">Inspected</div></div>
-            <div class="kpi-item"><div id="kpi_pass_${num}" class="kpi-value kpi-pass-color">0</div><div class="kpi-label">Pass</div></div>
-            <div class="kpi-item"><div id="kpi_false_call_${num}" class="kpi-value kpi-false_call-color">0</div><div class="kpi-label">F. Call</div></div>
-        </div>
-        <div class="chart-container">
-            <canvas id="comparisonChart_${num}"></canvas>
-        </div>
-    </div>`;
+function createDefaultLineData() {
+    return {
+        status: 'INACTIVE', is_critical_alert: false, image_url: null,
+        details: { time: '-', component_ref: '-', part_number: '-', machine_defect: '-', inspection_result: '-', review_result: '-' },
+        kpi: { assembly: '-', total_inspected: 0, total_pass: 0, total_defect: 0, total_false_call: 0, pass_rate: 0, ppm: 0 },
+        comparison_data: { before: { pass_rate: 0 }, current: { pass_rate: 0 } }
+    };
+}

@@ -1,8 +1,6 @@
 <?php
 session_start();
-// Cek Login
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-  // Redirect ke index.php dan perintahkan untuk membuka modal login
   $current_page = basename($_SERVER['PHP_SELF']);
   header("Location: index.php?trigger_login=true&redirect=" . urlencode($current_page));
   exit;
@@ -18,74 +16,177 @@ $current_page = 'feedback.php';
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Feedback Management</title>
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/feedback.css">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: { 850: '#151e2e', 900: '#0f172a', 950: '#020617' }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          animation: {
+            'fade-in-up': 'fadeInUp 0.3s ease-out forwards',
+          },
+          keyframes: {
+            fadeInUp: {
+              '0%': { opacity: '0', transform: 'translateY(10px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style type="text/tailwindcss">
+    @layer utilities {
+      /* Hanya Custom Scrollbar yang tersisa */
+      .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+      .custom-scrollbar::-webkit-scrollbar-track { @apply bg-slate-900; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-slate-700 rounded-full hover:bg-slate-600 transition-colors; }
+    }
+  </style>
+
   <link rel="stylesheet" href="css/notiflix.css">
   <link rel="stylesheet" href="css/flatpickr.min.css">
 </head>
-<body>
-  <header class="header-ui">
-    <div class="header-info">
-      <h1 class="header-title">FEEDBACK MANAGEMENT</h1>
-      <p class="header-subtitle">Operator & Machine Result Verification</p>
-    </div>
-    <div class="header-clock-area">
-      <!-- User Info -->
-      <a href="#" class="btn-report" style="background: linear-gradient(90deg, var(--blue-color),rgb(15, 87, 243)); color: white; cursor: default;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/><path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/></svg>
-        <span id="userId" data-id="<?= $userId ?>"><?= $fullName ?></span>
-      </a>
+<body class="bg-slate-950 text-slate-200 font-sans selection:bg-blue-500 selection:text-white">
 
-      <!-- Navigation -->
-      <a href="index.php" class="btn-report"><span>DASHBOARD</span></a>
-      <a href="report.php" class="btn-report"><span>KPI REPORT</span></a>
-      <a href="feedback.php" class="btn-report active-nav" style="background: linear-gradient(90deg, var(--yellow-color), #f59e0b); color: var(--text-dark);"><span>FEEDBACK</span></a>
-      <a href="summary_report.php" class="btn-report"><span>SUMMARY</span></a>
-      <a href="tuning.php" class="btn-report" style="background: linear-gradient(90deg, #818cf8, var(--blue-color)); color: var(--text-dark);"><span>DEBUGGING</span></a>
-      
-      <a href="logout.php?from=feedback.php" class="btn-report" style="background: linear-gradient(90deg, var(--red-color),rgb(243, 140, 15)); color: var(--text-dark);">
-        <span>KELUAR</span>
-      </a>
+  <!-- NAVBAR -->
+  <?php include 'templates/navbar.php'; ?>
 
-      <div class="header-clock" style="margin-left: auto;">
-        <p id="clock">00:00:00</p>
-        <p id="date">-- -- --</p>
-      </div>
-    </div>
-  </header>
-
-  <main class="feedback-page-layout">
-    <!-- List Queue Panel -->
-    <div class="card-ui feedback-list-panel">
-      <div class="list-header">
-        <h2>Verification Queue</h2>
-        <p>Items requiring analyst review.</p>
-        <div class="list-filters">
-          <div class="filter-control"><label>Line</label><select id="line-filter"><option value="">All Lines</option></select></div>
-          <div class="filter-control"><label>Defect</label><select id="defect-filter"><option value="">All Defects</option></select></div>
-          <div class="filter-control"><label>Assembly</label><input type="text" id="assembly-filter" placeholder="Search Assembly..."></div>
-          <div class="filter-control"><label>Date</label><input type="text" id="date-range-filter" placeholder="Filter by Date..."></div>
+  <main class="max-w-[1920px] mx-auto p-6 space-y-6 min-h-[calc(100vh-80px)]">
+    
+    <!-- PAGE HEADER -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+                <span class="p-2 bg-yellow-600 rounded-lg shadow-lg shadow-yellow-600/20 text-white">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </span>
+                Feedback Management
+            </h1>
+            <p class="text-slate-400 text-sm mt-1 ml-14">Verify operator decisions and machine results.</p>
         </div>
-      </div>
-      <div class="table-container">
-        <table id="feedback-table">
-          <thead><tr><th>No.</th><th>Time</th><th>Line</th><th>Defect</th><th>Result</th></tr></thead>
-          <tbody id="feedback-table-body"></tbody>
-        </table>
-        <div id="loading-indicator"><div class="spinner"></div><span>Loading...</span></div>
-      </div>
+        
+        <!-- Live Status Indicator -->
+        <div class="hidden md:flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-lg shadow-sm">
+            <span class="relative flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
+            <span class="text-sm font-bold text-slate-300">Live Feed Active</span>
+        </div>
     </div>
 
-    <!-- Detail & Form Panel -->
-    <div class="card-ui feedback-detail-panel">
-      <div id="detail-view-placeholder" class="placeholder-view">
-        <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="currentColor" viewBox="0 0 16 16"><path d="M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h13zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-13z"/><path d="M7 5.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 1 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0zM7 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm-1.496-.854a.5.5 0 0 1 0 .708l-1.5 1.5a.5.5 0 0 1-.708 0l-.5-.5a.5.5 0 0 1 .708-.708l.146.147 1.146-1.147a.5.5 0 0 1 .708 0z"/></svg>
-        <h3>Select an item to view details</h3>
-      </div>
-      <div id="detail-view-content" class="hidden"></div>
+    <!-- MAIN GRID LAYOUT -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-200px)] min-h-[600px]">
+        
+        <!-- LEFT PANEL: LIST QUEUE -->
+        <div class="col-span-1 lg:col-span-7 flex flex-col bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden ring-1 ring-white/5">
+            
+            <!-- Filters Toolbar -->
+            <div class="p-5 border-b border-slate-800 bg-slate-950/30 backdrop-blur-md sticky top-0 z-20">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="space-y-1.5 group">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1 group-focus-within:text-blue-400 transition-colors">Line</label>
+                        <div class="relative">
+                            <select id="line-filter" class="w-full bg-slate-950 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all appearance-none cursor-pointer hover:bg-slate-900">
+                                <option value="">All Lines</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5 group">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1 group-focus-within:text-blue-400 transition-colors">Defect Type</label>
+                        <div class="relative">
+                            <select id="defect-filter" class="w-full bg-slate-950 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all appearance-none cursor-pointer hover:bg-slate-900">
+                                <option value="">All Defects</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-500">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5 group">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1 group-focus-within:text-blue-400 transition-colors">Assembly</label>
+                        <input type="text" id="assembly-filter" placeholder="Search..." class="w-full bg-slate-950 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder-slate-600">
+                    </div>
+                    <div class="space-y-1.5 group">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1 group-focus-within:text-blue-400 transition-colors">Date Range</label>
+                        <input type="text" id="date-range-filter" placeholder="Filter Date..." class="w-full bg-slate-950 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all placeholder-slate-600">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Area -->
+            <div class="flex-grow relative overflow-y-auto custom-scrollbar bg-slate-900">
+                <table id="feedback-table" class="w-full text-left text-sm border-collapse">
+                    <thead class="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider sticky top-0 z-10 shadow-sm border-b border-slate-800">
+                        <tr>
+                            <th class="px-5 py-3.5 font-bold w-12 text-center border-r border-slate-800">#</th>
+                            <th class="px-5 py-3.5 font-bold w-32">Time</th>
+                            <th class="px-5 py-3.5 font-bold w-24 text-center">Line</th>
+                            <th class="px-5 py-3.5 font-bold">Defect Type</th>
+                            <th class="px-5 py-3.5 font-bold w-40 text-center">Machine Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="feedback-table-body" class="divide-y divide-slate-800/50 text-slate-300">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
+                
+                <!-- Empty State / Loading Overlay -->
+                <div id="loading-indicator" class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center z-20 transition-opacity duration-300">
+                    <div class="relative mb-4">
+                        <div class="w-12 h-12 border-4 border-slate-800 border-t-blue-500 rounded-full animate-spin"></div>
+                    </div>
+                    <span class="text-slate-400 text-xs font-bold uppercase tracking-widest animate-pulse">Syncing Data...</span>
+                </div>
+            </div>
+            
+            <!-- Footer Status Bar -->
+            <div class="px-4 py-2 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500">
+                <span>Showing latest items first</span>
+                <span class="font-mono">Auto-refresh active</span>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: DETAIL & ACTION -->
+        <div class="col-span-1 lg:col-span-5 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl flex flex-col relative overflow-hidden ring-1 ring-white/5 h-full">
+            
+            <!-- Placeholder View -->
+            <div id="detail-view-placeholder" class="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-slate-900 transition-opacity duration-300">
+                <div class="relative mb-6 group">
+                    <div class="absolute inset-0 bg-blue-500/20 rounded-full blur-xl group-hover:bg-blue-500/30 transition-all duration-500"></div>
+                    <div class="relative p-6 bg-slate-800 border border-slate-700 rounded-3xl shadow-xl">
+                        <svg class="w-16 h-16 text-slate-400 group-hover:text-blue-400 transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-white tracking-tight mb-2">Ready to Verify</h3>
+                <p class="text-sm max-w-xs mx-auto leading-relaxed text-slate-400">Select an item from the queue on the left to inspect defect details and submit your decision.</p>
+            </div>
+            
+            <!-- Content View (Populated by JS) -->
+            <div id="detail-view-content" class="hidden h-full flex flex-col overflow-y-auto custom-scrollbar bg-slate-900">
+                <!-- JS will inject HTML here using classes defined in <style> block above -->
+            </div>
+        </div>
+
     </div>
   </main>
   
+  <!-- Hidden Element for JS User ID -->
+  <div id="userId" data-id="<?= $userId ?>" class="hidden"></div>
+
   <script src="js/notiflix.js"></script>
   <script src="js/flatpickr.min.js"></script>
   <script src="js/feedback.js"></script>

@@ -2,7 +2,6 @@
 session_start();
 require_once 'api/db_config.php';
 
-// Auth Check
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
   $current_page = basename($_SERVER['PHP_SELF']);
   header("Location: index.php?trigger_login=true&redirect=" . urlencode($current_page));
@@ -10,7 +9,6 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 $userId = htmlspecialchars($_SESSION['user_id']);
-$fullName = htmlspecialchars($_SESSION['full_name']);
 $current_page = 'tuning.php';
 
 $lines = [];
@@ -20,7 +18,7 @@ try {
     $stmt = $conn->query("SELECT LineID, LineName FROM ProductionLines ORDER BY LineID");
     $lines = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
-    error_log("Failed to fetch lines: " . $e->getMessage());
+    error_log("Failed: " . $e->getMessage());
 }
 ?>
 <!DOCTYPE html>
@@ -28,68 +26,142 @@ try {
 <head>
   <meta charset="UTF-8">
   <title>Start New Tuning Cycle</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { slate: { 850: '#151e2e', 900: '#0f172a', 950: '#020617' } } } } }
+  </script>
+  <!-- Chart JS untuk Preview Grafik -->
+  <script src="js/charts.js"></script>
+  <script src="js/chartjs-plugin-datalabels.js"></script>
   <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/report.css">
-  <link rel="stylesheet" href="css/tuning.css">
+  
+  <style>
+    /* Custom Scrollbar untuk Preview */
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  </style>
 </head>
-<body>
-  <header class="header-ui">
-    <div>
-      <h1 class="header-title">TUNING CYCLE MANAGEMENT</h1>
-      <p class="header-subtitle">Start a New Program Tuning Cycle</p>
-    </div>
-    <div class="header-clock-area">
-      <a href="#" class="btn-report" style="background: linear-gradient(90deg, var(--blue-color),rgb(15, 87, 243)); color: white; cursor:default;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16"><path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/><path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/></svg>
-        <span id="userId" data-id="<?= $userId ?>"><?= $fullName ?></span>
-      </a>
-      <a href="index.php" class="btn-report"><span>DASHBOARD</span></a>
-      <a href="feedback.php" class="btn-report"><span>FEEDBACK</span></a>
-      <a href="tuning.php" class="btn-report active-nav" style="background: linear-gradient(90deg, #818cf8, var(--blue-color)); color: var(--text-dark);"><span>DEBUGGING</span></a>
-      <a href="logout.php?from=tuning.php" class="btn-report" style="background: linear-gradient(90deg, var(--red-color),rgb(243, 140, 15)); color: var(--text-dark);"><span>KELUAR</span></a>
-      
-      <div class="header-clock" style="margin-left: auto;">
-        <p id="clock">00:00:00</p>
-        <p id="date">-- -- --</p>
-      </div>
-    </div>
-  </header>
+<body class="bg-slate-950 text-slate-200 font-sans selection:bg-indigo-500 selection:text-white">
 
-  <main class="report-container">
-    <div class="card-ui tuning-panel">
-      <h2>Start New Cycle</h2>
-      <p class="tuning-description">Memulai siklus baru akan memisahkan data KPI sebelum dan sesudah tuning.</p>
-      
-      <form id="tuning_form">
-        <input type="hidden" id="user_id" value="<?= $userId ?>">
-        <div class="form-row">
-          <div class="form-control">
-            <label for="line_id">1. Select Production Line</label>
-            <select id="line_id" name="line_id" required>
-              <option value="">-- Choose Line --</option>
-              <?php foreach ($lines as $line): ?>
-                <option value="<?= htmlspecialchars($line['LineID']) ?>"><?= htmlspecialchars($line['LineName']) ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
-          <div class="form-control">
-            <label for="assembly_name">2. Select Assembly Name</label>
-            <select id="assembly_name" name="assembly_name" required disabled>
-              <option value="">-- Choose Line First --</option>
-            </select>
-          </div>
+  <?php include 'templates/navbar.php'; ?>
+
+  <main class="max-w-[1600px] mx-auto p-6 space-y-6">
+    
+    <!-- Header -->
+    <div class="flex items-center gap-4 border-b border-slate-800 pb-6">
+        <div class="w-14 h-14 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
+            <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         </div>
-        <div class="form-control">
-          <label for="notes">3. Notes / Change Log (Wajib)</label>
-          <textarea id="notes" name="notes" rows="4" required></textarea>
+        <div>
+            <h2 class="text-2xl font-bold text-white tracking-tight">Tuning Cycle Manager</h2>
+            <p class="text-slate-400 text-sm mt-1">Initialize new program versions and log debugging activities.</p>
         </div>
-        <div class="form-actions">
-          <div id="status_message" class="status-message"></div>
-          <button type="submit" id="submit_button" class="btn btn-primary">Start New Cycle & Save</button>
+    </div>
+
+    <!-- MAIN GRID CONTENT -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- LEFT COLUMN: FORM INPUT (7 Cols) -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 relative overflow-hidden ring-1 ring-white/5">
+            <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <span class="w-1.5 h-6 bg-indigo-500 rounded-full"></span>
+                Cycle Configuration
+            </h3>
+
+            <form id="tuning_form" class="space-y-8">
+                <input type="hidden" id="user_id" value="<?= $userId ?>">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <!-- Line Select -->
+                  <div class="space-y-2 group">
+                    <label for="line_id" class="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-400 transition-colors pl-1">1. Select Line</label>
+                    <div class="relative">
+                        <select id="line_id" name="line_id" required class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 appearance-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all cursor-pointer hover:bg-slate-800">
+                          <option value="">-- Select Production Line --</option>
+                          <?php foreach ($lines as $line): ?>
+                            <option value="<?= htmlspecialchars($line['LineID']) ?>"><?= htmlspecialchars($line['LineName']) ?></option>
+                          <?php endforeach; ?>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-500">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                  </div>
+
+                  <!-- Assembly Select -->
+                  <div class="space-y-2 group">
+                    <label for="assembly_name" class="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-400 transition-colors pl-1">2. Select Assembly</label>
+                    <div class="relative">
+                        <select id="assembly_name" name="assembly_name" required disabled class="w-full bg-slate-950 border border-slate-700 text-slate-400 rounded-xl px-4 py-3 appearance-none disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                          <option value="">-- Choose Line First --</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-500">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="space-y-2 group">
+                  <label for="notes" class="text-xs font-bold text-slate-500 uppercase tracking-wider group-focus-within:text-indigo-400 transition-colors pl-1">3. Change Log / Notes <span class="text-red-500">*</span></label>
+                  <textarea id="notes" name="notes" rows="5" required class="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder-slate-600 resize-none" placeholder="Describe parameter changes (e.g., Modified lighting threshold for C101, Updated template for R52)..."></textarea>
+                </div>
+
+                <!-- Action -->
+                <div class="pt-6 border-t border-slate-800 flex items-center justify-between">
+                  <div id="status_message" class="text-sm font-medium transition-all"></div>
+                  <button type="submit" id="submit_button" class="flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold rounded-xl shadow-xl shadow-indigo-500/20 transform hover:-translate-y-0.5 transition-all active:scale-95 tracking-wide text-sm">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    START NEW CYCLE
+                  </button>
+                </div>
+            </form>
         </div>
-      </form>
+
+        <!-- RIGHT COLUMN: LIVE PREVIEW (5 Cols) -->
+        <div class="lg:col-span-5 space-y-4 sticky top-24">
+            
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    Current Line Status
+                </h3>
+                <span id="preview_status_badge" class="px-2 py-0.5 bg-slate-800 text-slate-500 text-[10px] rounded uppercase font-bold">No Selection</span>
+            </div>
+
+            <!-- Preview Card Container -->
+            <!-- Container ini akan diisi oleh JS, kita beri tinggi minimum agar layout tidak 'jumpy' -->
+            <div id="preview_panel_container" class="min-h-[300px] flex flex-col justify-center">
+                
+                <!-- Placeholder State -->
+                <div id="preview_placeholder" class="bg-slate-900/50 border-2 border-dashed border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center text-center h-full min-h-[300px]">
+                    <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </div>
+                    <h4 class="text-slate-300 font-bold">No Line Selected</h4>
+                    <p class="text-slate-500 text-xs mt-2 max-w-[200px]">Select a production line from the left to preview its current live status.</p>
+                </div>
+
+                <!-- Live Content (Hidden by default) -->
+                <div id="preview_content" class="hidden">
+                    <!-- Injected by JS -->
+                </div>
+
+            </div>
+            
+            <div class="bg-blue-900/20 border border-blue-900/30 rounded-lg p-3 flex gap-3 items-start">
+                <svg class="w-5 h-5 text-blue-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div class="text-xs text-blue-200/80 leading-relaxed">
+                    <strong>Tip:</strong> Always verify the currently running assembly matches your selection before starting a new cycle to ensure data integrity.
+                </div>
+            </div>
+
+        </div>
     </div>
   </main>
+  
   <script src="js/jquery-3.7.0.min.js"></script>
   <script src="js/tuning.js"></script>
 </body>

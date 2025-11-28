@@ -5,13 +5,13 @@
 
 class Database {
     // Konfigurasi Database Dashboard (Lokal)
-    private $dash_host = "127.0.0.1";
+    private $dash_host = "localhost";
     private $dash_db   = "aoi_dashboard";
     private $dash_user = "root";
     private $dash_pass = "root";
 
     // Konfigurasi Database ERP (User Auth)
-    private $erp_host  = "127.0.0.1"; // Ganti jika IP berbeda (misal: 192.168.12.203)
+    private $erp_host  = "localhost"; // Ganti jika IP berbeda (misal: 192.168.12.203)
     private $erp_db    = "stockflow_system";
     private $erp_user  = "root";      // Sesuaikan dengan user ERP (misal: ohmuser)
     private $erp_pass  = "root";
