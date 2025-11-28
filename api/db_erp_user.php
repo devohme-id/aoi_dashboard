@@ -1,26 +1,20 @@
 <?php
-// File: api/db_config.php
+// =============================================
+// api/db_erp_user.php
+// =============================================
 
-// Aktifkan mode exception untuk error koneksi MySQLi
-// Ini akan membuat error lebih mudah ditangkap oleh blok try-catch
-mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
-
-// --- GANTI DENGAN DETAIL KONEKSI ANDA ---
-$servername = "192.168.12.203";
-$username = "ohmuser";
-$password = ""; // Isi password Anda jika ada
-$dbname = "stockflow_system";
-
-// tabel_erp_master_users
+require_once 'db_config.php';
 
 try {
-    $conn = new mysqli($servername, $username, $password, $dbname);
-    // Atur charset ke utf8mb4 untuk dukungan karakter yang lebih baik
-    $conn->set_charset("utf8mb4");
-} catch (mysqli_sql_exception $e) {
-    // Jika koneksi gagal, script akan berhenti di sini dan error akan ditangkap
-    // oleh blok try-catch di file get_dashboard_data.php
-    throw new Exception("Database Connection Error: " . $e->getMessage());
+    $database = new Database();
+    // Kita gunakan variabel $conn agar kompatibel dengan file legacy yang mungkin meng-include ini
+    // Tapi sekarang $conn adalah object PDO, bukan mysqli
+    $conn = $database->connectERP(); 
+} catch (Exception $e) {
+    // Error handling jika koneksi ERP gagal
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode(["error" => "Authentication System Unavailable"]);
+    exit;
 }
-
-// Variabel $conn sekarang tersedia untuk file yang memanggil require_once 'db_config.php';
+?>

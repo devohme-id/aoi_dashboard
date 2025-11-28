@@ -1,98 +1,82 @@
 <?php
-// file api/auth.php
+// =============================================
+// api/auth.php
+// =============================================
 session_start();
-$user_table = "erp_master_users"; // Pastikan ini nama tabel Anda
 
-try {
-  require_once 'db_erp_user.php';
+// Load koneksi database ERP
+require_once 'db_erp_user.php'; 
 
-  if ($_SERVER["REQUEST_METHOD"] == "POST") {
+// Nama tabel user di database ERP
+$user_table = "erp_master_users"; 
 
-    // --- ▼▼▼ PERUBAHAN 1: Tangkap URL redirect saat error ▼▼▼ ---
-    $redirect_param = ''; // Parameter URL untuk dikirim balik jika error
-    if (isset($_POST['redirect_url'])) {
-      // Ambil nama filenya saja untuk keamanan
-      $safe_redirect_on_error = basename($_POST['redirect_url']);
-      $redirect_param = '?redirect=' . urlencode($safe_redirect_on_error);
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    
+    // 1. Sanitasi Input
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
+    
+    // 2. Logic Redirect yang Lebih Cerdas
+    // Default kembali ke index.php
+    $base_redirect = '../index.php';
+    
+    // Ambil halaman target sukses (misal: feedback.php)
+    $success_target = 'feedback.php';
+    if (!empty($_POST['redirect_url'])) {
+        $clean_url = basename($_POST['redirect_url']);
+        // Validasi whitelist halaman
+        $allowed = ['feedback.php', 'tuning.php', 'index.php', 'report.php', 'summary_report.php'];
+        if (in_array($clean_url, $allowed)) {
+            $success_target = $clean_url;
+        }
     }
-    // --- ▲▲▲ SELESAI ▲▲▲ ---
 
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+    // 3. Helper untuk Redirect Error (Kembali ke index.php dan buka modal lagi)
+    $redirect_on_error = function($msg) use ($base_redirect, $success_target) {
+        $error_param = '?login_error=' . urlencode($msg);
+        $target_param = '&redirect=' . urlencode($success_target);
+        header("Location: " . $base_redirect . $error_param . $target_param . "&trigger_login=true");
+        exit;
+    };
 
+    // 4. Validasi Kosong
     if (empty($username) || empty($password)) {
-      $_SESSION['login_error'] = "Username dan password tidak boleh kosong.";
-      // Kirim balik parameter redirect
-      header("Location: ../login.php" . $redirect_param);
-      exit;
+        $redirect_on_error("Username dan password wajib diisi.");
     }
 
-    // Pastikan Anda juga mengambil full_name di sini
-    $stmt = $conn->prepare("SELECT user_id, username, full_name, password FROM $user_table WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
+    try {
+        // 5. Query Login
+        $sql = "SELECT user_id, username, full_name, password FROM $user_table WHERE username = :username LIMIT 1";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':username', $username, PDO::PARAM_STR);
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($result->num_rows === 1) {
-      $user = $result->fetch_assoc();
-      $hashed_input_password = md5($password);
-
-      if ($hashed_input_password === $user['password']) {
-        session_regenerate_id(true);
-        $_SESSION['loggedin'] = true;
-        $_SESSION['user_id'] = $user['user_id'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['full_name'] = $user['full_name']; // Pastikan ini di-set
-
-        // --- ▼▼▼ PERUBAHAN 2: INI BAGIAN PENTINGNYA (Logika Redirect Dinamis) ▼▼▼ ---
-
-        // Daftar halaman yang diizinkan untuk redirect
-        $allowed_pages = [
-          'feedback.php',
-          'tuning.php',
-          'index.php',
-          'report.php',
-          'summary_report.php'
-        ];
-
-        // Halaman default jika tidak ada yg spesifik
-        $redirect_target = '../feedback.php';
-
-        if (isset($_POST['redirect_url'])) {
-          // Ambil nama filenya saja (keamanan)
-          $requested_page = basename($_POST['redirect_url']);
-
-          // Cek apakah halaman yg diminta ada di daftar yg diizinkan
-          if (in_array($requested_page, $allowed_pages)) {
-            $redirect_target = '../' . $requested_page;
-          }
+        // 6. Verifikasi Password
+        if ($user) {
+            if (md5($password) === $user['password']) {
+                session_regenerate_id(true);
+                $_SESSION['loggedin']  = true;
+                $_SESSION['user_id']   = $user['user_id'];
+                $_SESSION['username']  = $user['username'];
+                $_SESSION['full_name'] = $user['full_name'];
+                
+                // Login Sukses: Ke halaman yang dituju
+                header("Location: ../" . $success_target);
+                exit;
+            } else {
+                $redirect_on_error("Password salah.");
+            }
+        } else {
+            $redirect_on_error("Username tidak ditemukan.");
         }
 
-        // Redirect ke halaman yang dituju
-        header("Location: " . $redirect_target);
-        exit;
-        // --- ▲▲▲ SELESAI ▲▲▲ ---
-
-      } else {
-        $_SESSION['login_error'] = "Password salah. Silakan coba lagi.";
-        header("Location: ../login.php" . $redirect_param); // Kirim balik
-        exit;
-      }
-    } else {
-      $_SESSION['login_error'] = "Username tidak ditemukan.";
-      header("Location: ../login.php" . $redirect_param); // Kirim balik
-      exit;
+    } catch (PDOException $e) {
+        error_log("Login Error: " . $e->getMessage());
+        $redirect_on_error("Terjadi kesalahan sistem.");
     }
-
-    $stmt->close();
-    $conn->close();
-  } else {
-    header("Location: ../login.php");
+} else {
+    header("Location: ../index.php");
     exit;
-  }
-} catch (Exception $e) {
-  error_log($e->getMessage());
-  $_SESSION['login_error'] = "Terjadi error pada sistem. Silakan hubungi administrator.";
-  header("Location: ../login.php");
-  exit;
 }
+?>

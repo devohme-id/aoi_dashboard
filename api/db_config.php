@@ -1,39 +1,68 @@
 <?php
 // =============================================
-// db_config.php (Optimized Version)
+// api/db_config.php (Refactored - PDO Version)
 // =============================================
 
-// Database connection configuration
-$db_host = "192.168.12.207";         // or use internal IP if MySQL in same VM
-$db_user = "db_admin";    // recommended: non-root user
-$db_pass = "Ohm@2025";
-// $db_host = "127.0.0.1";         // or use internal IP if MySQL in same VM
-// $db_user = "root";    // recommended: non-root user
-// $db_pass = "root";
-$db_name = "aoi_dashboard";
+class Database {
+    // Konfigurasi Database Dashboard (Lokal)
+    private $dash_host = "127.0.0.1";
+    private $dash_db   = "aoi_dashboard";
+    private $dash_user = "root";
+    private $dash_pass = "root";
 
-// Enable persistent connection (prefix "p:")
-$conn = @new mysqli('p:' . $db_host, $db_user, $db_pass, $db_name);
+    // Konfigurasi Database ERP (User Auth)
+    private $erp_host  = "127.0.0.1"; // Ganti jika IP berbeda (misal: 192.168.12.203)
+    private $erp_db    = "stockflow_system";
+    private $erp_user  = "root";      // Sesuaikan dengan user ERP (misal: ohmuser)
+    private $erp_pass  = "root";
 
-// Set proper charset
-if (!$conn->connect_errno) {
-    $conn->set_charset("utf8mb4");
-} else {
-    error_log("[" . date("Y-m-d H:i:s") . "] MySQL connection failed: " . $conn->connect_error . "\n", 3, "/var/log/php-fpm/db_error.log");
-    http_response_code(500);
-    die(json_encode(["error" => "Database connection failed."]));
-}
+    public $conn;
 
-// Optional: set connection timeout
-$conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 5);
-
-// Optional function for safe query
-function safe_query($query) {
-    global $conn;
-    $result = $conn->query($query);
-    if (!$result) {
-        error_log("[" . date("Y-m-d H:i:s") . "] Query failed: " . $conn->error . "\n", 3, "/var/log/php-fpm/db_error.log");
+    // Method untuk koneksi ke AOI Dashboard
+    public function connect() {
+        $this->conn = null;
+        try {
+            $dsn = "mysql:host=" . $this->dash_host . ";dbname=" . $this->dash_db . ";charset=utf8mb4";
+            $options = [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_PERSISTENT         => true // Persistent connection
+            ];
+            
+            $this->conn = new PDO($dsn, $this->dash_user, $this->dash_pass, $options);
+            
+        } catch(PDOException $e) {
+            // Log error ke file server, jangan tampilkan ke user
+            error_log("[" . date("Y-m-d H:i:s") . "] Dashboard DB Connection Error: " . $e->getMessage() . "\n", 3, __DIR__ . "/../logs/db_error.log");
+            
+            // Return JSON jika ini dipanggil oleh API
+            header('Content-Type: application/json');
+            http_response_code(500);
+            echo json_encode(["error" => "Connection failed."]);
+            exit;
+        }
+        return $this->conn;
     }
-    return $result;
+
+    // Method untuk koneksi ke ERP (Khusus Auth/User)
+    public function connectERP() {
+        $this->conn = null;
+        try {
+            $dsn = "mysql:host=" . $this->erp_host . ";dbname=" . $this->erp_db . ";charset=utf8mb4";
+            $options = [
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES   => false,
+            ];
+
+            $this->conn = new PDO($dsn, $this->erp_user, $this->erp_pass, $options);
+
+        } catch(PDOException $e) {
+            error_log("[" . date("Y-m-d H:i:s") . "] ERP DB Connection Error: " . $e->getMessage() . "\n", 3, __DIR__ . "/../logs/db_error.log");
+            throw new Exception("ERP Database Connection Error");
+        }
+        return $this->conn;
+    }
 }
 ?>

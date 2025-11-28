@@ -1,82 +1,65 @@
 <?php
-
 /**
  * File: api/get_dashboard_data.php
- * Purpose: Provide structured AOI dashboard data with optimized DB access
- * Optimized by: ChatGPT (2025)
+ * Purpose: Provide structured AOI dashboard data with optimized PDO access
  */
 
 $debug_mode = false;
 
-// --- Error Handling Setup ---
 if ($debug_mode) {
     error_reporting(E_ALL);
     ini_set('display_errors', 1);
 } else {
     error_reporting(0);
-    ini_set('display_errors', 0);
     header('Content-Type: application/json; charset=utf-8');
 }
 
-// --- Dependencies ---
+require_once __DIR__ . '/db_config.php';
+
 try {
-    require_once __DIR__ . '/db_config.php';
-
-    if (!isset($conn) || !$conn || $conn->connect_error) {
-        throw new Exception("Database Connection Failed: " . ($conn->connect_error ?? "Unknown error"));
-    }
-
-    // Optional: reduce MySQL memory usage
-    $conn->query("SET SESSION sql_mode = ''");
-
-    // --- Cache Layer (lightweight, 3 seconds default) ---
+    // --- Cache Layer (3 detik) ---
     $cache_file = sys_get_temp_dir() . '/aoi_dashboard_cache.json';
-    $cache_lifetime = 3; // seconds
+    $cache_lifetime = 3; 
 
     if (file_exists($cache_file) && (time() - filemtime($cache_file)) < $cache_lifetime) {
-        echo file_get_contents($cache_file);
+        // Return cached data
+        readfile($cache_file);
         exit;
     }
 
+    // Init Database
+    $database = new Database();
+    $conn = $database->connect();
+
+    // Fetch Data
     $data = getDashboardData($conn);
     $json_output = json_encode($data, JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_UNESCAPED_SLASHES);
 
-    // Cache result
+    // Save Cache
     file_put_contents($cache_file, $json_output, LOCK_EX);
 
     echo $json_output;
+
 } catch (Exception $e) {
     http_response_code(500);
-    $error_response = ['error' => 'API Error: ' . $e->getMessage()];
-    if ($debug_mode) {
-        echo "<pre>" . print_r($error_response, true) . "</pre>";
-    } else {
-        echo json_encode($error_response);
-    }
-} finally {
-    if (isset($conn) && $conn instanceof mysqli) {
-        $conn->close();
-    }
+    echo json_encode(['error' => 'API Error: ' . $e->getMessage()]);
 }
 
 // =====================================================================
-// Core Function
+// Core Functions
 // =====================================================================
-function getDashboardData(mysqli $conn): array
+
+function getDashboardData(PDO $conn): array
 {
-    define('CRITICAL_DEFECTS', [
-        'SHORT SOLDER',
-        'POOR SOLDER',
-        'BALL SOLDER',
-        'NO SOLDER',
-        'WRONG POLARITY',
-        'WRONG COMPONENT'
-    ]);
+    $critical_defects = [
+        'SHORT SOLDER', 'POOR SOLDER', 'BALL SOLDER', 
+        'NO SOLDER', 'WRONG POLARITY', 'WRONG COMPONENT'
+    ];
 
     $response = ['lines' => []];
 
-    // --- 1️⃣ Query panel terakhir per line ---
-    $panel_query = "
+    // 1. Query Panel Terakhir (Optimized Window Function)
+    $sql = "
         WITH LatestPanel AS (
             SELECT i.*, d.ComponentRef, d.PartNumber, d.ReworkDefectCode, d.MachineDefectCode, d.ImageFileName,
                    ROW_NUMBER() OVER (PARTITION BY i.LineID ORDER BY i.EndTime DESC) AS rn
@@ -86,19 +69,15 @@ function getDashboardData(mysqli $conn): array
         SELECT * FROM LatestPanel WHERE rn = 1;
     ";
 
-    $panel_result = $conn->query($panel_query);
-
-    if (!$panel_result) {
-        throw new Exception("Panel query failed: " . $conn->error);
-    }
-
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
     $latest_panels = [];
-    while ($row = $panel_result->fetch_assoc()) {
+    
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $latest_panels[$row['LineID']] = $row;
     }
-    $panel_result->free();
 
-    // --- 2️⃣ Loop untuk setiap line 1–6 ---
+    // 2. Loop Lines 1-6
     for ($i = 1; $i <= 6; $i++) {
         $panel_data = $latest_panels[$i] ?? null;
 
@@ -122,9 +101,11 @@ function getDashboardData(mysqli $conn): array
                 'review_result' => $panel_data['FinalResult'] ?? 'N/A'
             ];
 
-            $line_data['is_critical_alert'] = in_array(strtoupper(trim($panel_data['MachineDefectCode'] ?? '')), CRITICAL_DEFECTS, true);
+            // Cek Critical Defect
+            $defectCode = strtoupper(trim($panel_data['MachineDefectCode'] ?? ''));
+            $line_data['is_critical_alert'] = in_array($defectCode, $critical_defects, true);
 
-            // --- Build Image URL safely ---
+            // Build Image URL
             if (!empty($panel_data['ImageFileName'])) {
                 $path_parts = preg_split('/[\\\\\\/]/', $panel_data['ImageFileName']);
                 if (count($path_parts) >= 2) {
@@ -139,7 +120,7 @@ function getDashboardData(mysqli $conn): array
                 }
             }
 
-            // --- KPI & Comparison ---
+            // KPI & Comparison
             $current_assembly = $panel_data['Assembly'] ?? '';
             $current_lot = $panel_data['LotCode'] ?? '';
             $current_cycle = (int)($panel_data['TuningCycleID'] ?? 0);
@@ -160,29 +141,21 @@ function getDashboardData(mysqli $conn): array
     return $response;
 }
 
-// =====================================================================
-// Helper Functions
-// =====================================================================
-function getKpi(mysqli $conn, int $line, string $assembly, string $lot, int $cycle): array
+function getKpi(PDO $conn, int $line, string $assembly, string $lot, int $cycle): array
 {
-    static $stmt = null;
-    if (!$stmt) {
-        $stmt = $conn->prepare("
-            SELECT Assembly, LotCode, COUNT(InspectionID) AS Inspected,
-                   SUM(FinalResult = 'Pass') AS Pass,
-                   SUM(FinalResult = 'Defective') AS Defect,
-                   SUM(FinalResult IN ('False Fail', 'Unreviewed')) AS FalseCall
-            FROM Inspections
-            WHERE LineID = ? AND Assembly = ? AND LotCode = ? AND TuningCycleID = ?
-            GROUP BY Assembly, LotCode
-        ");
-    }
+    $sql = "
+        SELECT Assembly, LotCode, COUNT(InspectionID) AS Inspected,
+               SUM(FinalResult = 'Pass') AS Pass,
+               SUM(FinalResult = 'Defective') AS Defect,
+               SUM(FinalResult IN ('False Fail', 'Unreviewed')) AS FalseCall
+        FROM Inspections
+        WHERE LineID = ? AND Assembly = ? AND LotCode = ? AND TuningCycleID = ?
+        GROUP BY Assembly, LotCode
+    ";
 
-    $stmt->bind_param("issi", $line, $assembly, $lot, $cycle);
-    $stmt->execute();
-
-    $result = $stmt->get_result()->fetch_assoc() ?: [];
-    $stmt->free_result();
+    $stmt = $conn->prepare($sql);
+    $stmt->execute([$line, $assembly, $lot, $cycle]);
+    $result = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
     return calculateKpiMetrics($result);
 }
@@ -206,36 +179,21 @@ function calculateKpiMetrics(array $result): array
     ];
 }
 
-function createDefaultDetails(): array
-{
+function createDefaultDetails(): array {
     return [
-        'time' => 'N/A',
-        'component_ref' => 'N/A',
-        'part_number' => 'N/A',
-        'machine_defect' => 'N/A',
-        'inspection_result' => 'N/A',
-        'review_result' => 'N/A'
+        'time' => 'N/A', 'component_ref' => 'N/A', 'part_number' => 'N/A',
+        'machine_defect' => 'N/A', 'inspection_result' => 'N/A', 'review_result' => 'N/A'
     ];
 }
 
-function createDefaultKpi(): array
-{
+function createDefaultKpi(): array {
     return [
-        'assembly' => 'N/A',
-        'lot_code' => 'N/A',
-        'total_inspected' => 0,
-        'total_pass' => 0,
-        'total_defect' => 0,
-        'total_false_call' => 0,
-        'pass_rate' => 0,
-        'ppm' => 0
+        'assembly' => 'N/A', 'lot_code' => 'N/A', 'total_inspected' => 0,
+        'total_pass' => 0, 'total_defect' => 0, 'total_false_call' => 0, 'pass_rate' => 0, 'ppm' => 0
     ];
 }
 
-function createDefaultComparison(): array
-{
-    return [
-        'before' => createDefaultKpi(),
-        'current' => createDefaultKpi()
-    ];
+function createDefaultComparison(): array {
+    return ['before' => createDefaultKpi(), 'current' => createDefaultKpi()];
 }
+?>

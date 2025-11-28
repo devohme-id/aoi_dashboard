@@ -1,67 +1,71 @@
 <?php
 // ======================================================
-//  get_image.php - Cross Platform SMB/Local Access
+//  api/get_image.php - Secure Image Fetcher
 // ======================================================
 
-// Mapping path Windows
+// Mapping Config
 $path_mapping = [
-    1 => '\\\\192.168.0.19\\QX600\\Images\\ExportedImages',
-    2 => '\\\\192.168.0.21\\qx600\\Images\\ExportedImages\\ExportedImages',
-    3 => '\\\\192.168.0.29\\qx600\\Images\\ExportedImages',
-    4 => '\\\\192.168.0.25\\qx600\\Images\\ExportedImages',
-    5 => '\\\\192.168.0.35\\D_Drive\\QX600\\Images\\ExportedImages',
-    6 => '\\\\192.168.0.23\\D_Drive\\QX600\\Images\\ExportedImages'
+    // Windows Paths
+    'win' => [
+        1 => '\\\\192.168.0.19\\QX600\\Images\\ExportedImages',
+        2 => '\\\\192.168.0.21\\qx600\\Images\\ExportedImages\\ExportedImages',
+        3 => '\\\\192.168.0.29\\qx600\\Images\\ExportedImages',
+        4 => '\\\\192.168.0.25\\qx600\\Images\\ExportedImages',
+        5 => '\\\\192.168.0.35\\D_Drive\\QX600\\Images\\ExportedImages',
+        6 => '\\\\192.168.0.23\\D_Drive\\QX600\\Images\\ExportedImages'
+    ],
+    // Linux Mount Paths
+    'linux' => [
+        1 => '/mnt/qx600_1',
+        2 => '/mnt/qx600_2',
+        3 => '/mnt/qx600_3',
+        4 => '/mnt/qx600_4',
+        5 => '/mnt/qx600_5',
+        6 => '/mnt/qx600_6'
+    ]
 ];
 
-// Mapping path Linux (hasil mount)
-$linux_mapping = [
-    1 => '/mnt/qx600_1',
-    2 => '/mnt/qx600_2',
-    3 => '/mnt/qx600_3',
-    4 => '/mnt/qx600_4',
-    5 => '/mnt/qx600_5',
-    6 => '/mnt/qx600_6'
-];
+// 1. Sanitasi Input
+$line = filter_input(INPUT_GET, 'line', FILTER_VALIDATE_INT);
+$date = filter_input(INPUT_GET, 'date', FILTER_SANITIZE_NUMBER_INT); // Hanya angka
+$file = basename($_GET['file'] ?? ''); // Hanya nama file, hapus path components
 
-// Ambil parameter dari URL
-$line = isset($_GET['line']) ? intval($_GET['line']) : 0;
-$date = isset($_GET['date']) ? preg_replace('/[^0-9]/', '', $_GET['date']) : ''; // hanya angka
-$file = isset($_GET['file']) ? basename($_GET['file']) : '';
-
-if ($line === 0 || empty($file)) {
+if (!$line || empty($file)) {
     http_response_code(400);
-    echo "Invalid parameters.";
-    exit;
+    die("Invalid parameters.");
 }
 
-// Deteksi OS
-$is_windows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
-
-// Tentukan base path sesuai OS
-$base_path = $is_windows ? ($path_mapping[$line] ?? null) : ($linux_mapping[$line] ?? null);
+// 2. Tentukan Base Path
+$os_key = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') ? 'win' : 'linux';
+$base_path = $path_mapping[$os_key][$line] ?? null;
 
 if (!$base_path) {
     http_response_code(404);
-    echo "Invalid line ID.";
+    die("Line configuration not found.");
+}
+
+// 3. Construct Path Aman
+$path_separator = ($os_key === 'win') ? '\\' : '/';
+$full_path = rtrim($base_path, '/\\') . $path_separator;
+
+if (!empty($date)) {
+    // Validasi folder tanggal harus angka saja
+    if (ctype_digit($date)) {
+        $full_path .= $date . $path_separator;
+    }
+}
+
+$full_path .= $file;
+
+// 4. Serve File
+if (file_exists($full_path)) {
+    $mime = mime_content_type($full_path);
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . filesize($full_path));
+    readfile($full_path);
     exit;
-}
-
-// Buat full path — jika folder per tanggal digunakan (misal /20251013/)
-$image_path = rtrim($base_path, '/\\') . DIRECTORY_SEPARATOR;
-if (!empty($date) && is_dir($image_path . $date)) {
-    $image_path .= $date . DIRECTORY_SEPARATOR;
-}
-$image_path .= $file;
-
-// Cek apakah file ada
-if (!file_exists($image_path)) {
+} else {
     http_response_code(404);
-    echo "Image not found: " . htmlspecialchars($image_path);
-    exit;
+    echo "Image not found.";
 }
-
-// Tampilkan gambar
-$mime = mime_content_type($image_path);
-header('Content-Type: ' . $mime);
-readfile($image_path);
-exit;
+?>

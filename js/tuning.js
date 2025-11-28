@@ -1,98 +1,117 @@
+/**
+ * tuning.js - Tuning Cycle Management
+ * Updated with Modal Login Redirect support
+ */
 $(document).ready(function () {
+  const elements = {
+      line: $('#line_id'),
+      assembly: $('#assembly_name'),
+      form: $('#tuning_form'),
+      status: $('#status_message'),
+      submitBtn: $('#submit_button')
+  };
 
-  const lineSelect = $('#line_id');
-  const assemblySelect = $('#assembly_name');
-  const form = $('#tuning_form');
-  const statusMessage = $('#status_message');
-  const submitButton = $('#submit_button');
-
-  // 1. Ambil daftar assembly saat line dipilih
-  lineSelect.on('change', function () {
-    const lineId = $(this).val();
-    assemblySelect.prop('disabled', true).html('<option value="">Loading...</option>');
-
-    if (!lineId) {
-      assemblySelect.html('<option value="">-- Choose Line First --</option>');
-      return;
-    }
-
-    $.ajax({
-      url: 'api/get_assemblies.php',
-      type: 'POST',
-      data: { line_id: lineId },
-      dataType: 'json',
-      success: function (response) {
-        if (response.error) {
-          assemblySelect.html(`<option value="">Error: ${response.error}</option>`);
-        } else {
-          let options = '<option value="">-- Choose Assembly --</option>';
-          const currentAssembly = response.current_assembly;
-
-          response.all_assemblies.forEach(function (assembly) {
-            // Tambahkan prefix '(Current)' jika assembly sama dengan yang sedang berjalan
-            const isCurrent = assembly === currentAssembly;
-            const prefix = isCurrent ? '(Current) ' : '';
-
-            // Pilih assembly yang sedang berjalan secara default
-            const selectedAttr = isCurrent ? 'selected' : '';
-
-            options += `<option value="${assembly}" ${selectedAttr}>${prefix}${assembly}</option>`;
-          });
-
-          assemblySelect.html(options).prop('disabled', false);
-        }
-      },
-      error: function () {
-        assemblySelect.html('<option value="">Failed to load assemblies</option>');
+  // Helper: Redirect to login modal on session timeout
+  function handleAuthError(xhr) {
+      if (xhr.status === 401) {
+          const currentUrl = encodeURIComponent(window.location.pathname);
+          window.location.href = `index.php?trigger_login=true&redirect=${currentUrl}&login_error=Sesi+berakhir.+Silakan+login.`;
+          return true;
       }
-    });
+      return false;
+  }
+
+  // 1. Load Assemblies on Line Change
+  elements.line.on('change', function () {
+      const lineId = $(this).val();
+      elements.assembly.prop('disabled', true).html('<option value="">Loading...</option>');
+
+      if (!lineId) {
+          elements.assembly.html('<option value="">-- Choose Line First --</option>');
+          return;
+      }
+
+      $.ajax({
+          url: 'api/get_assemblies.php',
+          type: 'POST',
+          data: { line_id: lineId },
+          dataType: 'json',
+          success: function (response) {
+              if (response.error) {
+                  elements.assembly.html(`<option value="">Error: ${response.error}</option>`);
+              } else {
+                  let options = '<option value="">-- Choose Assembly --</option>';
+                  const currentAssembly = response.current_assembly;
+
+                  response.all_assemblies.forEach(function (assembly) {
+                      const isCurrent = assembly === currentAssembly;
+                      const prefix = isCurrent ? '(Current) ' : '';
+                      const selectedAttr = isCurrent ? 'selected' : '';
+                      options += `<option value="${assembly}" ${selectedAttr}>${prefix}${assembly}</option>`;
+                  });
+
+                  elements.assembly.html(options).prop('disabled', false);
+              }
+          },
+          error: function (xhr, status, error) {
+              if (!handleAuthError(xhr)) {
+                  console.error("Fetch Assembly Error:", error);
+                  elements.assembly.html('<option value="">Failed to load assemblies</option>');
+              }
+          }
+      });
   });
 
-  // 2. Handle form submission
-  form.on('submit', function (e) {
-    e.preventDefault();
-    statusMessage.text('').removeClass('success error');
-    submitButton.prop('disabled', true).find('span').text('Saving...');
+  // 2. Submit New Cycle
+  elements.form.on('submit', function (e) {
+      e.preventDefault();
+      
+      elements.status.text('').removeClass('success error');
+      elements.submitBtn.prop('disabled', true).find('span').text('Saving...');
 
-    const formData = {
-      line_id: lineSelect.val(),
-      assembly_name: assemblySelect.val(),
-      notes: $('#notes').val(),
-      user_id: $('#user_id').val()
-    };
+      const formData = {
+          line_id: elements.line.val(),
+          assembly_name: elements.assembly.val(),
+          notes: $('#notes').val()
+      };
 
-    $.ajax({
-      url: 'api/start_new_cycle.php',
-      type: 'POST',
-      data: formData,
-      dataType: 'json',
-      success: function (response) {
-        if (response.success) {
-          statusMessage.text(response.message).addClass('success');
-          form[0].reset();
-          assemblySelect.prop('disabled', true).html('<option value="">-- Choose Line First --</option>');
-          // Refresh assembly list to show new state
-          lineSelect.trigger('change');
-        } else {
-          statusMessage.text(`Error: ${response.message}`).addClass('error');
-        }
-      },
-      error: function () {
-        statusMessage.text('Error: A server error occurred.').addClass('error');
-      },
-      complete: function () {
-        submitButton.prop('disabled', false).find('span').text('Start New Cycle & Save');
-      }
-    });
+      $.ajax({
+          url: 'api/start_new_cycle.php',
+          type: 'POST',
+          data: formData,
+          dataType: 'json',
+          success: function (response) {
+              if (response.success) {
+                  elements.status.text(response.message).addClass('success');
+                  elements.form[0].reset();
+                  elements.assembly.prop('disabled', true).html('<option value="">-- Choose Line First --</option>');
+                  // Trigger change to refresh list (optional)
+                  elements.line.trigger('change');
+              } else {
+                  elements.status.text(`Error: ${response.message}`).addClass('error');
+              }
+          },
+          error: function (xhr, status, error) {
+              if (!handleAuthError(xhr)) {
+                  console.error("Submit Cycle Error:", error);
+                  let msg = "A server error occurred.";
+                  if (xhr.responseJSON && xhr.responseJSON.message) {
+                      msg = xhr.responseJSON.message;
+                  }
+                  elements.status.text(`Error: ${msg}`).addClass('error');
+              }
+          },
+          complete: function () {
+              elements.submitBtn.prop('disabled', false).find('span').text('Start New Cycle & Save');
+          }
+      });
   });
 
-  // Update Jam
+  // Clock
   function updateClock() {
-    const now = new Date();
-    $('#clock').text(now.toLocaleTimeString('id-ID', { hour12: false }));
-    $('#date').text(now.toLocaleDateString('id-ID', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-    }));
+      const now = new Date();
+      $('#clock').text(now.toLocaleTimeString('id-ID', { hour12: false }));
+      $('#date').text(now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
   }
   updateClock();
   setInterval(updateClock, 1000);

@@ -1,47 +1,35 @@
 <?php
 // File: api/feedback_handler.php
-
-session_start(); // Diperlukan untuk membaca session
-
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+session_start();
 header('Content-Type: application/json');
 
 require_once 'db_config.php';
 
-define('CRITICAL_DEFECTS', [
-    'SHORT SOLDER',
-    'POOR SOLDER',
-    'BALL SOLDER',
-    'NO SOLDER',
-    'WRONG POLARITY',
-    'WRONG COMPONENT'
-]);
+$critical_defects = [
+    'SHORT SOLDER', 'POOR SOLDER', 'BALL SOLDER',
+    'NO SOLDER', 'WRONG POLARITY', 'WRONG COMPONENT'
+];
 
 try {
+    $database = new Database();
+    $conn = $database->connect();
+
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         handleFeedbackSubmission($conn);
     } else {
-        getFeedbackData($conn);
+        getFeedbackData($conn, $critical_defects);
     }
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server Error: ' . $e->getMessage()]);
-} finally {
-    if (isset($conn)) $conn->close();
 }
 
-function getFeedbackData($conn)
-{
-    // ... (Fungsi getFeedbackData Anda tidak berubah, biarkan apa adanya) ...
-    $lines_query = "SELECT LineID, LineName FROM ProductionLines ORDER BY LineID ASC";
-    $lines_result = $conn->query($lines_query);
-    if (!$lines_result) throw new Exception("Query failed [lines]: " . $conn->error);
-    $all_lines = [];
-    while ($row = $lines_result->fetch_assoc()) {
-        $all_lines[] = $row;
-    }
+function getFeedbackData(PDO $conn, array $critical_defects) {
+    // 1. Get Lines
+    $stmt = $conn->query("SELECT LineID, LineName FROM ProductionLines ORDER BY LineID ASC");
+    $all_lines = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // 2. Get Queue
     $queue_query = "
         SELECT
             d.DefectID, d.MachineDefectCode, d.ComponentRef, d.PartNumber, d.ImageFileName,
@@ -59,22 +47,27 @@ function getFeedbackData($conn)
         ORDER BY i.EndTime DESC, d.DefectID ASC
         LIMIT 300;
     ";
-    $queue_result = $conn->query($queue_query);
-    if (!$queue_result) throw new Exception("Query failed [queue]: " . $conn->error);
-
+    
+    $stmt = $conn->query($queue_query);
     $queue_data = [];
-    while ($row = $queue_result->fetch_assoc()) {
+
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $image_url = null;
         if (!empty($row['ImageFileName'])) {
-            $path_parts = explode('\\', $row['ImageFileName']);
+            $path_parts = preg_split('/[\\\\\\/]/', $row['ImageFileName']); // Handle \ or /
             if (count($path_parts) >= 2) {
                 $date_folder = $path_parts[0];
                 $actual_filename = end($path_parts);
-                $image_url = "api/get_image.php?line=" . $row['LineID'] . "&date=" . urlencode($date_folder) . "&file=" . urlencode($actual_filename);
+                $image_url = sprintf(
+                    "api/get_image.php?line=%d&date=%s&file=%s",
+                    $row['LineID'],
+                    urlencode($date_folder),
+                    urlencode($actual_filename)
+                );
             }
         }
         $row['image_url'] = $image_url;
-        $row['is_critical'] = in_array(strtoupper($row['MachineDefectCode']), CRITICAL_DEFECTS);
+        $row['is_critical'] = in_array(strtoupper($row['MachineDefectCode'] ?? ''), $critical_defects);
         $queue_data[] = $row;
     }
 
@@ -84,90 +77,53 @@ function getFeedbackData($conn)
     ]);
 }
 
+function handleFeedbackSubmission(PDO $conn) {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
 
-/**
- * Mengurus submisi feedback dengan logika 'Find or Create User'
- */
-function handleFeedbackSubmission($conn)
-{
-    $data = json_decode(file_get_contents('php://input'), true);
-
-    // 1. Validasi Input dari Client
-    if (!isset($data['defect_id']) || !is_numeric($data['defect_id']) || !isset($data['decision']) || empty($data['decision'])) {
-        throw new Exception("Invalid input: Defect ID and decision are required.");
+    if (!isset($data['defect_id'], $data['decision'])) {
+        throw new Exception("Invalid input parameters.");
     }
+    
     $defectId = (int)$data['defect_id'];
     $decision = $data['decision'];
     $notes = $data['notes'] ?? null;
 
-    // 2. Validasi Session (Sumber Terpercaya)
-    if (!isset($_SESSION['username']) || !isset($_SESSION['full_name'])) {
-        throw new Exception("User session incomplete (username/fullname missing). Please log in again.");
+    if (!isset($_SESSION['username'])) {
+        http_response_code(401);
+        throw new Exception("Session expired. Please login.");
     }
-    $analystUsername = $_SESSION['username'];
-    $analystFullName = $_SESSION['full_name']; // Ini dari Langkah 1 (auth.php)
 
+    $username = $_SESSION['username'];
+    $fullName = $_SESSION['full_name'] ?? $username;
 
-    // --- ▼▼▼ INI SOLUSI BARU ANDA ▼▼▼ ---
+    // --- TRANSACTION START ---
+    $conn->beginTransaction();
 
-    $localAnalystId = null;
+    try {
+        // 1. Find or Create Analyst
+        $stmtCheck = $conn->prepare("SELECT UserID FROM Users WHERE Username = ? LIMIT 1");
+        $stmtCheck->execute([$username]);
+        $user = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
-    // 3. Cek apakah user SUDAH ADA di tabel 'Users' lokal berdasarkan USERNAME
-    $stmt_check = $conn->prepare("SELECT UserID FROM Users WHERE Username = ?");
-    if (!$stmt_check) throw new Exception("Prepare failed [check]: " . $conn->error);
-    $stmt_check->bind_param("s", $analystUsername);
-    $stmt_check->execute();
-    $result = $stmt_check->get_result();
-
-    if ($result->num_rows > 0) {
-        // --- User DITEMUKAN ---
-        $row = $result->fetch_assoc();
-        $localAnalystId = (int)$row['UserID'];
-    } else {
-        // --- User TIDAK DITEMUKAN, BUAT BARU ---
-
-        // PENTING: Sesuaikan query ini dengan struktur tabel 'Users' Anda.
-        // Kolom UserID harus AUTO_INCREMENT.
-        $stmt_create = $conn->prepare(
-            "INSERT INTO Users (Username, FullName, Role)
-             VALUES (?, ?, 'Analyst')"
-        );
-        if (!$stmt_create) throw new Exception("Prepare failed [create]: " . $conn->error);
-
-        // Bind Username dan FullName dari session
-        $stmt_create->bind_param("ss", $analystUsername, $analystFullName);
-
-        if (!$stmt_create->execute()) {
-            throw new Exception("Execute failed [create]: " . $stmt_create->error);
+        if ($user) {
+            $analystId = $user['UserID'];
+        } else {
+            $stmtCreate = $conn->prepare("INSERT INTO Users (Username, FullName, Role) VALUES (?, ?, 'Analyst')");
+            $stmtCreate->execute([$username, $fullName]);
+            $analystId = $conn->lastInsertId();
         }
 
-        // Ambil ID baru yang di-generate oleh AUTO_INCREMENT
-        $localAnalystId = (int)$conn->insert_id;
-        $stmt_create->close();
+        // 2. Insert Feedback
+        $stmtLog = $conn->prepare("INSERT INTO FeedbackLog (DefectID, AnalystUserID, AnalystDecision, AnalystNotes) VALUES (?, ?, ?, ?)");
+        $stmtLog->execute([$defectId, $analystId, $decision, $notes]);
+
+        $conn->commit();
+        echo json_encode(['success' => true, 'message' => 'Feedback saved.']);
+
+    } catch (Exception $e) {
+        $conn->rollBack();
+        throw $e;
     }
-    $stmt_check->close();
-
-    // 4. Pastikan kita punya ID lokal yang valid
-    if ($localAnalystId === null || $localAnalystId === 0) {
-        throw new Exception("Failed to find or create a valid local analyst ID.");
-    }
-
-    // --- ▲▲▲ SOLUSI SELESAI ▲▲▲ ---
-
-
-    // 5. Lanjutkan INSERT ke FeedbackLog menggunakan ID LOKAL
-    $stmt_log = $conn->prepare(
-        "INSERT INTO FeedbackLog (DefectID, AnalystUserID, AnalystDecision, AnalystNotes) VALUES (?, ?, ?, ?)"
-    );
-    if (!$stmt_log) throw new Exception("Prepare statement failed [log]: " . $conn->error);
-
-    // Gunakan $localAnalystId di sini
-    $stmt_log->bind_param("iiss", $defectId, $localAnalystId, $decision, $notes);
-
-    if ($stmt_log->execute()) {
-        echo json_encode(['success' => true, 'message' => 'Feedback submitted successfully.']);
-    } else {
-        throw new Exception("Execute failed [log]: " . $stmt_log->error);
-    }
-    $stmt_log->close();
 }
+?>
