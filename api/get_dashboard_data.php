@@ -82,7 +82,8 @@ function getDashboardData(mysqli $conn): array
                    ROW_NUMBER() OVER (PARTITION BY i.LineID ORDER BY i.EndTime DESC) AS rn
             FROM Inspections i
             LEFT JOIN Defects d ON i.InspectionID = d.InspectionID
-            WHERE i.RecordTimestamp BETWEEN CURDATE() - INTERVAL 1 DAY AND CURDATE()
+            WHERE i.RecordTimestamp >= CURDATE()
+            AND i.RecordTimestamp < CURDATE() + INTERVAL 1 DAY
         )
         SELECT * FROM LatestPanel WHERE rn = 1;
     ";
