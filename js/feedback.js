@@ -26,13 +26,13 @@ document.addEventListener("DOMContentLoaded", () => {
         datePicker: null
     };
 
-    // === HELPER: Redirect to Login Modal ===
+    // ... (Helper & Init logic tetap sama, langsung ke bagian updateClock) ...
+    // HELPER: Redirect to Login Modal
     function handleSessionTimeout() {
         const currentUrl = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.href = `index.php?trigger_login=true&redirect=${currentUrl}&login_error=Sesi+berakhir.+Silakan+login.`;
     }
 
-    // === INITIALIZATION ===
     function init() {
         if(elements.filters.date) {
             state.datePicker = flatpickr(elements.filters.date, {
@@ -48,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if(elements.tableBody) elements.tableBody.addEventListener("click", handleRowClick);
         
-        // Event Delegation
         if(elements.detailContent) {
             elements.detailContent.addEventListener("submit", handleVerificationSubmit);
         }
@@ -57,7 +56,6 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchFeedbackData();
     }
 
-    // === DATA FETCHING ===
     async function fetchFeedbackData() {
         toggleLoading(true);
         try {
@@ -88,7 +86,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // === RENDERING LIST ===
     function renderTable(data) {
         if (!elements.tableBody) return;
         if (data.length === 0) {
@@ -118,7 +115,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }).join('');
     }
 
-    // === RENDERING DETAIL (REVISED UI) ===
     function renderDetailView(defectId) {
         const item = state.verificationData.find(d => d.DefectID == defectId);
         
@@ -132,16 +128,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const criticalBanner = item.is_critical ? 
             `<div class="absolute top-3 right-3 bg-red-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg z-10 animate-pulse border border-red-400">CRITICAL DEFECT</div>` : '';
 
-        // Tentukan warna Machine Result
         const machineResultColor = (item.MachineDefectCode && item.MachineDefectCode !== 'Pass') 
             ? 'text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded' 
             : 'text-green-400 font-bold';
 
-        // --- PERBAIKAN PENTING DI SINI (onError Loop Fix) ---
         elements.detailContent.innerHTML = `
             <div class="flex flex-col h-full animate-fade-in-up">
-                
-                <!-- 1. IMAGE VIEWER -->
                 <div class="relative w-full h-72 bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center group mb-6 shrink-0 shadow-lg">
                     <img src="${imageUrl}" alt="Defect Image" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-125 cursor-zoom-in" onerror="this.onerror=null; this.src='assets/images/placeholder.png'">
                     ${criticalBanner}
@@ -150,7 +142,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>
 
-                <!-- 2. INFO GRID (REVISED: Compact, Clear, No Truncate) -->
                 <div class="bg-slate-950/50 border border-slate-800 rounded-xl p-4 mb-6 shadow-sm">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
                         <div class="space-y-1">
@@ -166,7 +157,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>
 
-                <!-- 3. DECISION PANEL (REVISED: Spacing & Margin) -->
                 <div class="mt-auto border-t border-slate-800 pt-6 pb-2">
                      <form id="verification-form" class="space-y-5">
                         <div class="flex items-center justify-between mb-2">
@@ -176,9 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <span class="text-[10px] text-slate-500 italic">Select one option below</span>
                         </div>
 
-                        <!-- Radio Cards Grid -->
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Confirm False Fail -->
                             <label class="relative cursor-pointer group">
                                 <input type="radio" name="decision" value="Confirm False Fail" class="peer sr-only" required>
                                 <div class="p-3.5 rounded-xl border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all peer-checked:bg-yellow-500/10 peer-checked:border-yellow-500 peer-checked:ring-1 peer-checked:ring-yellow-500/50 flex items-center gap-3 h-full">
@@ -192,7 +180,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </div>
                             </label>
 
-                            <!-- Confirm Defect -->
                             <label class="relative cursor-pointer group">
                                 <input type="radio" name="decision" value="Confirm Defect" class="peer sr-only">
                                 <div class="p-3.5 rounded-xl border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all peer-checked:bg-red-500/10 peer-checked:border-red-500 peer-checked:ring-1 peer-checked:ring-red-500/50 flex items-center gap-3 h-full">
@@ -206,7 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </div>
                             </label>
 
-                            <!-- Operator Error (Missed) -->
                             <label class="relative cursor-pointer group">
                                 <input type="radio" name="decision" value="Operator Error - Defect Missed" class="peer sr-only">
                                 <div class="p-3.5 rounded-xl border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all peer-checked:bg-orange-500/10 peer-checked:border-orange-500 peer-checked:ring-1 peer-checked:ring-orange-500/50 flex items-center gap-3 h-full">
@@ -220,7 +206,6 @@ document.addEventListener("DOMContentLoaded", () => {
                                 </div>
                             </label>
 
-                            <!-- Operator Error (Wrong Class) -->
                             <label class="relative cursor-pointer group">
                                 <input type="radio" name="decision" value="Operator Error - Wrong Classification" class="peer sr-only">
                                 <div class="p-3.5 rounded-xl border border-slate-700 bg-slate-800/40 hover:bg-slate-800 transition-all peer-checked:bg-purple-500/10 peer-checked:border-purple-500 peer-checked:ring-1 peer-checked:ring-purple-500/50 flex items-center gap-3 h-full">
@@ -235,7 +220,6 @@ document.addEventListener("DOMContentLoaded", () => {
                             </label>
                         </div>
 
-                        <!-- Notes Input -->
                         <div class="relative">
                             <input type="text" name="notes" placeholder="Add optional notes here..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder-slate-600 shadow-inner">
                         </div>
@@ -252,7 +236,6 @@ document.addEventListener("DOMContentLoaded", () => {
         elements.detailContent.classList.remove("hidden");
     }
 
-    // === UPDATED INFO ROW HELPER ===
     function infoRow(label, value, isBold = false, colorClass = '') {
         const textStyle = isBold ? 'font-bold text-white' : 'font-medium text-slate-300';
         const finalColor = colorClass ? colorClass : textStyle;
@@ -264,7 +247,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>`;
     }
 
-    // === LOGIC (Tidak Berubah) ===
     function applyFilters() {
         if (!state.datePicker) return;
         const lineVal = elements.filters.line.value;
@@ -300,6 +282,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function handleVerificationSubmit(e) {
         e.preventDefault();
+        
         if (!state.selectedDefectId) {
             if(window.Notiflix) Notiflix.Notify.warning("Error: No defect selected.");
             return;
@@ -346,14 +329,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                     <h3 class="text-2xl font-bold text-white mb-2">Verified!</h3>
                     <p class="text-slate-400 mb-6">Decision recorded successfully.</p>
-                    <div class="px-4 py-2 bg-slate-800 rounded-lg border border-slate-700 text-sm text-slate-300">${decision}</div>
+                    <div class="px-4 py-2 bg-slate-800 rounded-lg border border-slate-700 text-sm text-slate-300">
+                        ${decision}
+                    </div>
                 </div>`;
             
             if(window.Notiflix) Notiflix.Notify.success("Verification submitted successfully.");
             
             state.verificationData = state.verificationData.filter(i => i.DefectID != state.selectedDefectId);
             state.selectedDefectId = null;
-            populateDropdownFilters();
+            
+            populateDropdownFilters(); 
             applyFilters();
 
         } catch (error) {
@@ -386,7 +372,6 @@ document.addEventListener("DOMContentLoaded", () => {
         renderDetailView(state.selectedDefectId);
     }
 
-    // === COMMON HELPERS ===
     function populateDropdownFilters() {
         const currLine = elements.filters.line.value;
         const currDefect = elements.filters.defect.value;
@@ -429,13 +414,28 @@ document.addEventListener("DOMContentLoaded", () => {
     const formatTime = (iso) => new Date(iso).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
     const formatDateTime = (iso) => new Date(iso).toLocaleString("id-ID", { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
+    // REVISI CLOCK
     function startClock() {
         const update = () => {
             const now = new Date();
-            const clock = document.getElementById("clock");
-            const date = document.getElementById("date");
-            if(clock) clock.textContent = now.toLocaleTimeString("id-ID", { hour12: false });
-            if(date) date.textContent = now.toLocaleDateString("id-ID", { weekday: "short", year: "numeric", month: "short", day: "numeric" }).toUpperCase();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
+            
+            const days = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES'];
+            
+            const dayName = days[now.getDay()];
+            const dayNum = now.getDate();
+            const monthName = months[now.getMonth()];
+            const year = now.getFullYear();
+            
+            const dateStr = `${dayName}, ${dayNum} ${monthName} ${year}`;
+            
+            // Perbaikan Selektor: Pastikan mencari ID di document, bukan jQuery selector yang mungkin belum ready
+            const clockEl = document.getElementById('clock');
+            const dateEl = document.getElementById('date');
+            
+            if (clockEl) clockEl.textContent = timeStr;
+            if (dateEl) dateEl.textContent = dateStr;
         };
         update();
         setInterval(update, 1000);

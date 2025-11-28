@@ -1,6 +1,6 @@
 /**
  * main.js - Dashboard Logic (Compact Layout & Smart Design)
- * Revised: Responsive Height Fix (min-h-0) to ensure 2 rows fit in viewport
+ * Revised: Image Container wrapped for robust grid sizing
  */
 
 const CONFIG = {
@@ -114,15 +114,17 @@ function updateSinglePanel(lineNumber, data) {
     setText(`detail_time_${lineNumber}`, data.details.time);
     setText(`detail_ref_${lineNumber}`, data.details.component_ref);
     setText(`detail_part_${lineNumber}`, data.details.part_number);
+    
+    // Defect special handling
     setText(`detail_machine_defect_${lineNumber}`, data.details.machine_defect);
+    
     setText(`detail_inspect_${lineNumber}`, data.details.inspection_result);
     setText(`detail_review_${lineNumber}`, data.details.review_result);
 
     // Image / Visual State
     const imgContainer = document.getElementById(`image_container_${lineNumber}`);
     if (imgContainer) {
-        // Reset base classes - min-h-0 allows shrinking
-        imgContainer.className = 'image-container relative flex-grow bg-slate-950 rounded-lg border flex items-center justify-center overflow-hidden cursor-pointer group hover:border-blue-500/50 transition-all min-h-0';
+        imgContainer.className = 'image-container relative h-full w-full bg-slate-950 rounded-lg border flex items-center justify-center overflow-hidden cursor-pointer group hover:border-blue-500/50 transition-all min-h-0';
         
         if (isCritical) {
             imgContainer.classList.add('border-red-500', 'shadow-[0_0_15px_rgba(239,68,68,0.3)]');
@@ -154,7 +156,6 @@ function updateKPI(line, kpi) {
         const el = document.getElementById(id);
         if(!el) return;
         el.textContent = val;
-        // Adjusted font size for compact fit
         el.className = `text-lg font-bold leading-none ${good === true ? 'text-green-400' : (good === false ? 'text-red-400' : 'text-white')}`;
     };
 
@@ -202,30 +203,12 @@ function updateComparisonChart(lineNumber, data) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                layout: {
-                    padding: { top: 15, left: 0, right: 0, bottom: 0 }
-                },
+                layout: { padding: { top: 20, left: 0, right: 0, bottom: 0 } },
                 plugins: { 
                     legend: { display: false },
-                    tooltip: {
-                        enabled: true,
-                        mode: 'index',
-                        intersect: false,
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        titleFont: { size: 10 },
-                        bodyFont: { size: 10 },
-                        padding: 6,
-                        cornerRadius: 4,
-                        displayColors: false,
-                        callbacks: { label: (ctx) => `${ctx.raw}%` }
-                    },
                     datalabels: { 
-                        display: true, 
-                        color: '#fff', 
-                        anchor: 'end', 
-                        align: 'top', 
-                        offset: 2,
-                        font: { size: 10, weight: 'bold' }, 
+                        display: true, color: '#fff', anchor: 'end', align: 'top', 
+                        offset: 2, font: { size: 10, weight: 'bold' }, 
                         formatter: v => v + '%' 
                     }
                 },
@@ -238,7 +221,7 @@ function updateComparisonChart(lineNumber, data) {
     }
 }
 
-// --- HTML Template (Fit to Screen Optimized) ---
+// --- HTML Template (Full Viewport & Wrapped Image) ---
 function createPanelHTML(num) {
     return `
     <div class="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-col gap-2 h-full shadow-lg hover:border-slate-700 transition-colors group min-h-0">
@@ -255,7 +238,7 @@ function createPanelHTML(num) {
             <!-- Left: Detail Text (2 Cols) -->
             <div class="col-span-2 flex flex-col gap-1 h-full overflow-hidden">
                 
-                <!-- Assembly Info (Highlighted) -->
+                <!-- Assembly Info -->
                 <div class="flex flex-col border-b border-slate-800/80 pb-1 mb-0.5 shrink-0">
                     <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Assembly</span>
                     <span id="detail_assembly_${num}" class="font-bold text-white text-xs leading-tight break-words">N/A</span>
@@ -266,7 +249,7 @@ function createPanelHTML(num) {
                     ${detailRow('Ref', `detail_ref_${num}`)}
                     ${detailRow('Part', `detail_part_${num}`)}
                     
-                    <!-- Defect Row: Highlighted Block -->
+                    <!-- Defect Row -->
                     <div class="flex flex-col bg-red-500/5 border-l-2 border-red-500/50 pl-1.5 py-0.5 my-0.5 rounded-r shrink-0">
                         <span class="text-[10px] text-red-400/70 uppercase tracking-wider font-bold">Defect</span>
                         <span id="detail_machine_defect_${num}" class="font-bold text-red-400 text-xs leading-tight break-words">N/A</span>
@@ -277,11 +260,12 @@ function createPanelHTML(num) {
                 </div>
             </div>
 
-            <!-- Right: Image (3 Cols) -->
-            <!-- Added min-h-0 to allow shrinking if needed -->
-            <div id="image_container_${num}" class="col-span-3 image-container relative h-full w-full bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center overflow-hidden cursor-pointer min-h-0 shadow-inner" data-line="${num}">
-                <div class="flex flex-col items-center justify-center text-slate-700">
-                    <span class="text-[9px] font-bold tracking-widest">LOADING...</span>
+            <!-- Right: Image (3 Cols) with Wrapper -->
+            <div class="col-span-3 h-full min-h-0">
+                <div id="image_container_${num}" class="image-container relative h-full w-full bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-center overflow-hidden cursor-pointer shadow-inner" data-line="${num}">
+                    <div class="flex flex-col items-center justify-center text-slate-700">
+                        <span class="text-[9px] font-bold tracking-widest">LOADING...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -295,7 +279,7 @@ function createPanelHTML(num) {
             ${kpiBox(`kpi_false_call_${num}`, 'FC', 'text-yellow-500')}
         </div>
 
-        <!-- CHART (Reduced Height for 2 rows fit) -->
+        <!-- CHART -->
         <div class="h-16 w-full shrink-0">
             <canvas id="comparisonChart_${num}"></canvas>
         </div>
@@ -360,10 +344,26 @@ function setText(id, text) {
 
 function normalizeStatus(status) { return (status || 'inactive').toLowerCase().replace(/\s+/g, '_'); }
 
+// REVISI CLOCK
 function updateClock() {
     const now = new Date();
-    setText('clock', now.toLocaleTimeString('id-ID', { hour12: false }));
-    setText('date', now.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase());
+    const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
+    // Format: JUM, 29 NOV 2025
+    const days = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES'];
+    
+    const dayName = days[now.getDay()];
+    const dayNum = now.getDate();
+    const monthName = months[now.getMonth()];
+    const year = now.getFullYear();
+    
+    const dateStr = `${dayName}, ${dayNum} ${monthName} ${year}`;
+    
+    const clockEl = document.getElementById('clock');
+    const dateEl = document.getElementById('date');
+    
+    if (clockEl) clockEl.textContent = timeStr;
+    if (dateEl) dateEl.textContent = dateStr;
 }
 
 function createDefaultLineData() {

@@ -43,7 +43,6 @@ $(document).ready(function() {
                 alert("Failed to load data from server. Check console for details.");
             }
         },
-        // PERUBAHAN: Menambahkan kolom LotCode
         "columns": [
             { "data": "VerificationTimestamp", "title": "Verification Time" },
             { "data": "AnalystName", "title": "Analyst" },
@@ -61,9 +60,9 @@ $(document).ready(function() {
         "lengthMenu": [ [10, 25, 50, -1], [10, 25, 50, "All"] ],
         "searching": true,
         "language": { "search": "", "searchPlaceholder": "Search Assembly, Defect..." },
-        "dom": '<"datatable-header"lfr>t<"datatable-footer"ip>',
+        "dom": '<"dataTables_wrapper"lfr>t<"dataTables_wrapper"ip>',
         "scrollX": true,
-        "scrollY": 'calc(100vh - 380px)',
+        // Hapus fixed height
         "scrollCollapse": true,
     });
 
@@ -99,13 +98,26 @@ $(document).ready(function() {
             console.error('Export error:', error);
             alert('Failed to export data.');
         })
-        .finally(() => btn.prop('disabled', false).text('Export to Excel'));
+        .finally(() => btn.prop('disabled', false).text('EXCEL'));
     });
 
+    // REVISI CLOCK
     function updateClock() {
         const now = new Date();
-        $('#clock').text(now.toLocaleTimeString('id-ID', { hour12: false }));
-        $('#date').text(now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+        const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
+        
+        const days = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB'];
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES'];
+        
+        const dayName = days[now.getDay()];
+        const dayNum = now.getDate();
+        const monthName = months[now.getMonth()];
+        const year = now.getFullYear();
+        
+        const dateStr = `${dayName}, ${dayNum} ${monthName} ${year}`;
+        
+        $('#clock').text(timeStr);
+        $('#date').text(dateStr);
     }
     
     // Inisialisasi
@@ -113,4 +125,3 @@ $(document).ready(function() {
     updateClock();
     setInterval(updateClock, 1000);
 });
-
