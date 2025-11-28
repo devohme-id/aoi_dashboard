@@ -2,7 +2,7 @@
 // Konfigurasi Aplikasi
 // ==========================================================================
 const API_URL = 'api/get_dashboard_data.php';
-const REFRESH_INTERVAL = 15000;
+const REFRESH_INTERVAL = 5000;
 const TARGET_PASS_RATE = 90;
 const TARGET_PPM = 2100;
 const SOUND_DELAY = 2000;
