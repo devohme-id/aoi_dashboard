@@ -78,10 +78,11 @@ function getDashboardData(mysqli $conn): array
     // --- 1️⃣ Query panel terakhir per line ---
     $panel_query = "
         WITH LatestPanel AS (
-            SELECT i.*, d.ComponentRef, d.PartNumber, d.ReworkDefectCode, d.MachineDefectCode, d.ImageFileName,
+            SELECT i.LineID, i.EndTime,i.InspectionID , d.ComponentRef, d.PartNumber, d.ReworkDefectCode, d.MachineDefectCode, d.ImageFileName,
                    ROW_NUMBER() OVER (PARTITION BY i.LineID ORDER BY i.EndTime DESC) AS rn
             FROM Inspections i
             LEFT JOIN Defects d ON i.InspectionID = d.InspectionID
+            WHERE i.RecordTimestamp BETWEEN CURDATE() - INTERVAL 1 DAY AND CURDATE()
         )
         SELECT * FROM LatestPanel WHERE rn = 1;
     ";
