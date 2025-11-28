@@ -53,7 +53,7 @@ $(document).ready(function() {
             { "data": "MachineDefectCode", "title": "Machine Defect" },
             { "data": "OperatorResult", "title": "Operator Result" },
             { "data": "AnalystDecision", "title": "Analyst Decision" },
-            { "data": "AnalystNotes", "title": "Notes", "className": "notes-column" }
+            { "data": "AnalystNotes", "title": "Notes" }
         ],
         "responsive": true,
         "pageLength": 10,
@@ -62,7 +62,7 @@ $(document).ready(function() {
         "language": { "search": "", "searchPlaceholder": "Search Assembly, Defect..." },
         "dom": '<"dataTables_wrapper"lfr>t<"dataTables_wrapper"ip>',
         "scrollX": true,
-        // Hapus fixed height
+        // Hapus fixed height agar scroll halaman yang bekerja
         "scrollCollapse": true,
     });
 
@@ -101,7 +101,7 @@ $(document).ready(function() {
         .finally(() => btn.prop('disabled', false).text('EXCEL'));
     });
 
-    // REVISI CLOCK
+    // REVISI CLOCK (Konsisten 3 huruf Uppercase)
     function updateClock() {
         const now = new Date();
         const timeStr = now.toLocaleTimeString('id-ID', { hour12: false });
