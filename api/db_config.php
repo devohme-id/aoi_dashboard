@@ -1,42 +1,36 @@
 <?php
-// =============================================
-// api/db_config.php (Refactored - PDO Version)
-// =============================================
 
-class Database {
-    // Konfigurasi Database Dashboard (Lokal)
-    private $dash_host = "localhost";
-    private $dash_db   = "aoi_dashboard";
-    private $dash_user = "root";
-    private $dash_pass = "root";
+declare(strict_types=1);
 
-    // Konfigurasi Database ERP (User Auth)
-    private $erp_host  = "localhost"; // Ganti jika IP berbeda (misal: 192.168.12.203)
-    private $erp_db    = "stockflow_system";
-    private $erp_user  = "root";      // Sesuaikan dengan user ERP (misal: ohmuser)
-    private $erp_pass  = "root";
+class Database
+{
+    private string $dashHost = 'localhost';
+    private string $dashDb = 'aoi_dashboard';
+    private string $dashUser = 'root';
+    private string $dashPass = 'root';
 
-    public $conn;
+    private string $erpHost = 'localhost';
+    private string $erpDb = 'stockflow_system';
+    private string $erpUser = 'root';
+    private string $erpPass = 'root';
 
-    // Method untuk koneksi ke AOI Dashboard
-    public function connect() {
+    public ?PDO $conn = null;
+
+    public function connect(): ?PDO
+    {
         $this->conn = null;
         try {
-            $dsn = "mysql:host=" . $this->dash_host . ";dbname=" . $this->dash_db . ";charset=utf8mb4";
+            $dsn = "mysql:host={$this->dashHost};dbname={$this->dashDb};charset=utf8mb4";
             $options = [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-                PDO::ATTR_PERSISTENT         => true // Persistent connection
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_PERSISTENT => true
             ];
             
-            $this->conn = new PDO($dsn, $this->dash_user, $this->dash_pass, $options);
-            
-        } catch(PDOException $e) {
-            // Log error ke file server, jangan tampilkan ke user
-            error_log("[" . date("Y-m-d H:i:s") . "] Dashboard DB Connection Error: " . $e->getMessage() . "\n", 3, __DIR__ . "/../logs/db_error.log");
-            
-            // Return JSON jika ini dipanggil oleh API
+            $this->conn = new PDO($dsn, $this->dashUser, $this->dashPass, $options);
+        } catch (PDOException $e) {
+            error_log("[Dashboard DB Error] " . $e->getMessage(), 3, __DIR__ . "/../logs/db_error.log");
             header('Content-Type: application/json');
             http_response_code(500);
             echo json_encode(["error" => "Connection failed."]);
@@ -45,24 +39,20 @@ class Database {
         return $this->conn;
     }
 
-    // Method untuk koneksi ke ERP (Khusus Auth/User)
-    public function connectERP() {
-        $this->conn = null;
+    public function connectERP(): PDO
+    {
         try {
-            $dsn = "mysql:host=" . $this->erp_host . ";dbname=" . $this->erp_db . ";charset=utf8mb4";
+            $dsn = "mysql:host={$this->erpHost};dbname={$this->erpDb};charset=utf8mb4";
             $options = [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_EMULATE_PREPARES => false,
             ];
 
-            $this->conn = new PDO($dsn, $this->erp_user, $this->erp_pass, $options);
-
-        } catch(PDOException $e) {
-            error_log("[" . date("Y-m-d H:i:s") . "] ERP DB Connection Error: " . $e->getMessage() . "\n", 3, __DIR__ . "/../logs/db_error.log");
+            return new PDO($dsn, $this->erpUser, $this->erpPass, $options);
+        } catch (PDOException $e) {
+            error_log("[ERP DB Error] " . $e->getMessage(), 3, __DIR__ . "/../logs/db_error.log");
             throw new Exception("ERP Database Connection Error");
         }
-        return $this->conn;
     }
 }
-?>

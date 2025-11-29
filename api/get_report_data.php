@@ -1,5 +1,7 @@
 <?php
-// File: api/get_report_data.php
+
+declare(strict_types=1);
+
 require_once 'db_config.php';
 header('Content-Type: application/json');
 
@@ -8,16 +10,15 @@ try {
     $conn = $database->connect();
 
     $isExport = isset($_POST['export']) && $_POST['export'] === 'true';
-    
-    // Build Conditions
     $conditions = [];
     $params = [];
 
-    // Filter Logic
     $dateFilter = $_POST['date_filter'] ?? [];
-    if (!is_array($dateFilter)) $dateFilter = json_decode($dateFilter, true);
+    if (!is_array($dateFilter)) {
+        $dateFilter = json_decode((string)$dateFilter, true);
+    }
 
-    if (is_array($dateFilter) && count($dateFilter) == 2) {
+    if (is_array($dateFilter) && count($dateFilter) === 2) {
         $conditions[] = "DATE(i.EndTime) BETWEEN ? AND ?";
         $params[] = $dateFilter[0];
         $params[] = $dateFilter[1];
@@ -37,7 +38,6 @@ try {
 
     $whereSql = $conditions ? ' WHERE ' . implode(' AND ', $conditions) : '';
 
-    // Base Queries
     $fromSql = "
         FROM Inspections i
         JOIN ProductionLines pl ON i.LineID = pl.LineID
@@ -46,18 +46,14 @@ try {
     ";
     $groupSql = " GROUP BY i.LineID, i.Assembly, i.LotCode, i.TuningCycleID";
 
-    // --- COUNT TOTAL ---
-    // Count Total (Tanpa Filter)
     $stmtTotal = $conn->query("SELECT COUNT(DISTINCT LineID, Assembly, LotCode, TuningCycleID) FROM Inspections");
     $recordsTotal = $stmtTotal->fetchColumn();
 
-    // Count Filtered
     $countSql = "SELECT COUNT(*) FROM (SELECT i.LineID $fromSql $whereSql $groupSql) as sub";
     $stmtCount = $conn->prepare($countSql);
     $stmtCount->execute($params);
     $recordsFiltered = $stmtCount->fetchColumn();
 
-    // --- FETCH DATA ---
     $selectSql = "
         SELECT
             MAX(i.EndTime) as EndTime,
@@ -85,7 +81,6 @@ try {
     }
 
     $finalSql = $selectSql . $fromSql . $whereSql . $groupSql . $orderSql . $limitSql;
-
     $stmt = $conn->prepare($finalSql);
     $stmt->execute($params);
     
@@ -102,16 +97,15 @@ try {
         echo json_encode($data);
     } else {
         echo json_encode([
-            "draw" => intval($_POST['draw'] ?? 0),
+            "draw" => (int)($_POST['draw'] ?? 0),
             "recordsTotal" => $recordsTotal,
             "recordsFiltered" => $recordsFiltered,
             "data" => $data
         ]);
     }
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     http_response_code(500);
     error_log($e->getMessage());
     echo json_encode(['error' => 'Server Error']);
 }
-?>

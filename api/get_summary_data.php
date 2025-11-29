@@ -1,5 +1,7 @@
 <?php
-// File: api/get_summary_data.php
+
+declare(strict_types=1);
+
 require_once 'db_config.php';
 header('Content-Type: application/json');
 
@@ -8,16 +10,15 @@ try {
     $conn = $database->connect();
     
     $isExport = isset($_POST['export']) && $_POST['export'] === 'true';
-    
-    // Conditions
     $conditions = [];
     $params = [];
 
-    // Filters
     $dateFilter = $_POST['date_filter'] ?? [];
-    if (!is_array($dateFilter)) $dateFilter = json_decode($dateFilter, true);
+    if (!is_array($dateFilter)) {
+        $dateFilter = json_decode((string)$dateFilter, true);
+    }
 
-    if (is_array($dateFilter) && count($dateFilter) == 2) {
+    if (is_array($dateFilter) && count($dateFilter) === 2) {
         $conditions[] = "DATE(fb.VerificationTimestamp) BETWEEN ? AND ?";
         $params[] = $dateFilter[0];
         $params[] = $dateFilter[1];
@@ -44,7 +45,6 @@ try {
 
     $whereSql = $conditions ? ' WHERE ' . implode(' AND ', $conditions) : '';
 
-    // Base Joins
     $fromSql = "
         FROM FeedbackLog fb
         JOIN Defects d ON fb.DefectID = d.DefectID
@@ -54,7 +54,6 @@ try {
         LEFT JOIN ProductionLines pl ON i.LineID = pl.LineID
     ";
 
-    // Count
     $stmtTotal = $conn->query("SELECT COUNT(FeedbackID) FROM FeedbackLog");
     $recordsTotal = $stmtTotal->fetchColumn();
 
@@ -62,7 +61,6 @@ try {
     $stmtFiltered->execute($params);
     $recordsFiltered = $stmtFiltered->fetchColumn();
 
-    // Select Data
     $selectSql = "
         SELECT 
             fb.VerificationTimestamp AS 'Verification Time',
@@ -77,7 +75,6 @@ try {
             fb.AnalystNotes AS 'Analyst Notes'
     ";
     
-    // DataTable mapping keys
     if (!$isExport) {
         $selectSql = "
             SELECT 
@@ -111,16 +108,15 @@ try {
         echo json_encode($data);
     } else {
         echo json_encode([
-            "draw" => intval($_POST['draw'] ?? 0),
+            "draw" => (int)($_POST['draw'] ?? 0),
             "recordsTotal" => $recordsTotal,
             "recordsFiltered" => $recordsFiltered,
             "data" => $data
         ]);
     }
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     http_response_code(500);
     error_log($e->getMessage());
     echo json_encode(['error' => 'Server Error']);
 }
-?>
