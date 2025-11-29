@@ -14,7 +14,7 @@ $navItems = [
     [
         'url' => 'index.php',
         'label' => 'DASHBOARD',
-        'icon' => '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>'
+        'icon' => '<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>'
     ],
     [
         'url' => 'report.php',
@@ -56,14 +56,16 @@ $navItems = [
         <div class="flex items-center gap-1 md:gap-2 overflow-x-auto no-scrollbar px-4">
             <?php foreach ($navItems as $item): 
                 $isActive = $currentPage === $item['url'];
-                $baseClass = "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden";
+                $baseClass = "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group relative overflow-hidden select-none";
                 $activeClass = "bg-blue-600/10 text-blue-400 ring-1 ring-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)]";
-                $inactiveClass = "text-slate-400 hover:text-slate-100 hover:bg-slate-800";
+                $inactiveClass = "text-slate-400 hover:text-slate-200 hover:bg-slate-800";
             ?>
                 <a href="<?= $item['url'] ?>" class="<?= $baseClass ?> <?= $isActive ? $activeClass : $inactiveClass ?>">
                     <?= $item['icon'] ?>
                     <span class="hidden xl:block"><?= $item['label'] ?></span>
                     <?php if ($isActive): ?>
+                        <!-- Active Indicator -->
+                        <span class="hidden xl:block text-[8px] text-blue-500 animate-pulse ml-1">●</span>
                         <div class="absolute bottom-0 left-0 h-[2px] w-full bg-blue-500 shadow-[0_0_10px_#3b82f6]"></div>
                     <?php endif; ?>
                 </a>
@@ -78,9 +80,9 @@ $navItems = [
 
             <?php if ($isLoggedIn): ?>
                 <div class="flex items-center gap-3 border-l border-slate-700 pl-4">
-                    <div class="hidden lg:block text-right">
+                    <div class="hidden lg:block text-right leading-tight">
                         <div class="text-xs font-bold text-white"><?= $userFullName ?></div>
-                        <div class="text-[10px] text-green-400 font-medium">● Analyst Active</div>
+                        <div class="text-[10px] text-emerald-400 font-bold tracking-wide">ONLINE</div>
                     </div>
                     <a href="logout.php?from=<?= urlencode($currentPage) ?>" class="group p-2 rounded-lg bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-500/50 transition-all" title="Logout">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -93,7 +95,7 @@ $navItems = [
             <?php endif; ?>
 
             <div class="hidden xl:block text-right border-l border-slate-700 pl-4">
-                <div id="clock" class="text-lg font-bold text-slate-200 font-mono leading-none">00:00</div>
+                <div id="clock" class="text-lg font-bold text-slate-200 font-mono leading-none tracking-tight">00:00</div>
                 <div id="date" class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mt-1">-- -- --</div>
             </div>
         </div>
