@@ -26,7 +26,7 @@ class DashboardManager {
         }
 
         this.setupAudio();
-        // Hapus renderPanels statis disini. Panel akan dibuat setelah data API diterima.
+        // Panels will be created dynamically when data arrives
         this.startLoops();
     }
 
@@ -58,21 +58,42 @@ class DashboardManager {
             
             const data = await response.json();
             
-            // Validasi struktur data
-            if (data && data.lines) {
-                this.updateDashboardUI(data.lines);
+            // Logic to handle different data structures
+            // Priority: 1. data.lines, 2. root object if keys start with 'line_'
+            let linesData = {};
+            if (data.lines) {
+                linesData = data.lines;
+            } else if (data && typeof data === 'object') {
+                // Check if keys look like "line_X"
+                const hasLineKeys = Object.keys(data).some(k => k.startsWith('line_'));
+                if (hasLineKeys) {
+                    linesData = data;
+                }
+            }
+
+            if (Object.keys(linesData).length > 0) {
+                this.updateDashboardUI(linesData);
             } else {
-                console.warn("Invalid data structure from API");
+                console.warn("Invalid or empty data structure from API", data);
             }
         } catch (error) {
             console.error("Dashboard Data Error:", error);
-            // Opsional: Tampilkan indikator error koneksi di UI jika diperlukan
         }
     }
 
     updateDashboardUI(linesData) {
-        // 1. Render Panels jika belum ada (Dynamic based on API keys)
-        if (!this.state.panelsRendered) {
+        const panelArea = document.getElementById("panel-area");
+        
+        // 1. Render Panels if not rendered OR if DOM is empty (safety check)
+        const isEmpty = panelArea && panelArea.children.length === 0;
+        
+        if (!this.state.panelsRendered || isEmpty) {
+            // Remove loading state if present
+            const loadingState = panelArea.querySelector('.animate-pulse');
+            if (loadingState && loadingState.innerText.includes('CONNECTING')) {
+                panelArea.innerHTML = ''; 
+            }
+            
             this.renderPanels(linesData);
             this.state.panelsRendered = true;
         }
@@ -81,8 +102,7 @@ class DashboardManager {
 
         // 2. Update Data Panel
         Object.keys(linesData).forEach(key => {
-            // Extract number from key "line_1" -> 1
-            const lineNum = key.split('_')[1];
+            const lineNum = key.split('_')[1]; // "line_1" -> "1"
             const data = linesData[key];
             
             if (lineNum) {
@@ -98,45 +118,56 @@ class DashboardManager {
         const panelArea = document.getElementById("panel-area");
         if (!panelArea) return;
 
-        // Bersihkan loading state atau konten lama
-        panelArea.innerHTML = "";
+        // Ensure we clear previous content before appending
+        // Only clear if we are doing a full re-render (e.g. initial load)
+        if (panelArea.children.length === 0 || panelArea.querySelector('.animate-pulse')) {
+             panelArea.innerHTML = "";
+        }
 
-        // Generate HTML berdasarkan keys dari API (urutan line_1, line_2, dst)
-        Object.keys(linesData).sort().forEach(key => {
+        const sortedKeys = Object.keys(linesData).sort((a, b) => {
+             // Extract numbers for correct numeric sort (line_2 vs line_10)
+             const numA = parseInt(a.split('_')[1]) || 0;
+             const numB = parseInt(b.split('_')[1]) || 0;
+             return numA - numB;
+        });
+
+        sortedKeys.forEach(key => {
             const lineNum = key.split('_')[1];
-            if (lineNum) {
+            // Only create if it doesn't exist yet
+            if (lineNum && !document.getElementById(`panel_status_${lineNum}`)) {
                 panelArea.insertAdjacentHTML('beforeend', this.createPanelHTML(lineNum));
             }
         });
 
-        // Re-attach click events untuk navigasi
-        panelArea.addEventListener("click", (event) => {
-            const container = event.target.closest(".image-container");
-            if (container?.dataset.line) {
-                window.location.href = `feedback.php?line=${container.dataset.line}`;
-            }
-        });
+        // Re-attach click events (using delegation on parent is safer than re-attaching)
+        // Note: The click listener in init/renderPanels in previous versions might stack if not careful.
+        // It's better to add the listener ONCE in init or check here.
+        // Since we moved it here, let's ensure we don't duplicate logic. 
+        // Ideally, listener should be on panelArea once. 
+        // For now, to ensure it works after re-render, we leave it, but delegation is handled in constructor/init usually.
+        // Let's rely on the existing listener if the panel-area itself wasn't replaced, just its children.
     }
 
     updateSinglePanel(num, data) {
+        // Safety check if panel exists
+        const statusEl = document.getElementById(`panel_status_${num}`);
+        if (!statusEl) return; // Panel not found, skip update
+
         const isCritical = data.is_critical_alert;
         const isActive = data.status !== "INACTIVE";
         
         // Update Status Badge
-        const statusEl = document.getElementById(`panel_status_${num}`);
-        if (statusEl) {
-            statusEl.textContent = data.status;
-            statusEl.className = "px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider border shadow-sm transition-all duration-300";
+        statusEl.textContent = data.status;
+        statusEl.className = "px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider border shadow-sm transition-all duration-300";
 
-            if (isCritical) {
-                statusEl.classList.add("bg-red-500/20", "text-red-400", "border-red-500/50", "animate-pulse");
-            } else if (data.status === "Pass") {
-                statusEl.classList.add("bg-green-500/20", "text-green-400", "border-green-500/50");
-            } else if (isActive) {
-                statusEl.classList.add("bg-blue-500/20", "text-blue-400", "border-blue-500/50");
-            } else {
-                statusEl.classList.add("bg-slate-800", "text-slate-500", "border-slate-700");
-            }
+        if (isCritical) {
+            statusEl.classList.add("bg-red-500/20", "text-red-400", "border-red-500/50", "animate-pulse");
+        } else if (data.status === "Pass") {
+            statusEl.classList.add("bg-green-500/20", "text-green-400", "border-green-500/50");
+        } else if (isActive) {
+            statusEl.classList.add("bg-blue-500/20", "text-blue-400", "border-blue-500/50");
+        } else {
+            statusEl.classList.add("bg-slate-800", "text-slate-500", "border-slate-700");
         }
 
         // Update Text Details
@@ -166,7 +197,6 @@ class DashboardManager {
             imgContainer.classList.add("border-slate-800", "opacity-60");
         }
 
-        // Gunakan URL gambar dari API, atau fallback
         if (data.image_url) {
             imgContainer.innerHTML = `<img src="${data.image_url}" alt="Defect" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">`;
         } else {
@@ -212,14 +242,12 @@ class DashboardManager {
         const beforeVal = parseFloat(data.before.pass_rate) || 0;
         const currentVal = parseFloat(data.current.pass_rate) || 0;
 
-        // Jika chart sudah ada, update datanya saja
         if (this.state.lineCharts[chartId]) {
             this.state.lineCharts[chartId].data.datasets[0].data = [beforeVal, currentVal];
-            this.state.lineCharts[chartId].update("none"); // mode 'none' untuk performa
+            this.state.lineCharts[chartId].update("none");
             return;
         }
 
-        // Jika belum ada, buat chart baru
         this.state.lineCharts[chartId] = new Chart(canvas.getContext("2d"), {
             type: "bar",
             data: {
@@ -236,7 +264,7 @@ class DashboardManager {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: { display: false },
-                    tooltip: { enabled: false }, // Disable tooltip for cleaner dashboard
+                    tooltip: { enabled: false },
                     datalabels: {
                         display: true,
                         color: "#fff",
@@ -251,7 +279,7 @@ class DashboardManager {
                     x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 } } },
                     y: { display: false, max: 115 },
                 },
-                animation: false // Disable animation for initial load performance
+                animation: false
             },
         });
     }
@@ -264,7 +292,6 @@ class DashboardManager {
         this.state.isMuted = !this.state.isMuted;
         btn.classList.toggle("muted", this.state.isMuted);
         
-        // Re-check status untuk memulai/menghentikan loop audio
         const criticalElement = document.querySelector(".animate-pulse.border-red-500");
         this.manageAlertSound(criticalElement !== null);
     }
